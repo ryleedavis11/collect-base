@@ -348,9 +348,9 @@
                         <button class="want-filter-btn" data-rarity="holo"              onclick="toggleWantRarity(this)">Secret Rare</button>
                     </div>
                     <div class="want-rating-row">
-                        <label>MIN HP</label>
-                        <input type="range" id="want-rating-min" min="70" max="99" value="70" oninput="updateWantRatingLabel()">
-                        <div class="want-rating-val" id="want-rating-label">70+</div>
+                        <label>MIN RATING</label>
+                        <input type="range" id="want-rating-min" min="1" max="10" value="5" oninput="updateWantRatingLabel()">
+                        <div class="want-rating-val" id="want-rating-label">5+</div>
                     </div>
                     <div style="margin-bottom:14px;">
                         <div class="post-offer-label" style="margin-bottom:8px;">SPECIFIC POKÉMON NAME (OPTIONAL)</div>
@@ -391,6 +391,9 @@
             <div class="sv-subtitle" id="sv-subtitle"></div>
             <div class="sv-grid" id="sv-grid"><div class="sv-empty">Loading...</div></div>
         </div>
+    </div>
+    <div id="card-zoom-overlay" onclick="this.style.display='none'">
+        <div id="zoom-content"></div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

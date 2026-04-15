@@ -14,7 +14,7 @@
 
         // ─── STATE ───────────────────────────────────────────────────────────────
         let balance = 1000;
-        let holoConfig = { min_rating: 85, chance: 0.02 };
+        let holoConfig = { min_rating: 4, chance: 0.02 };
         let mySquad = [];
         let currentPull = null;
         let activeTier = null;
@@ -171,42 +171,42 @@
         }
 
         async function loadTopPullsToday() {
-            const track = document.getElementById('store-pulls-track');
-            if (!track) return;
-            const { data } = await _supabase
-                .from('user_saves')
-                .select('username, squad')
-                .not('squad', 'is', null);
-            if (!data) return;
+    const track = document.getElementById('store-pulls-track');
+    if (!track) return;
+    
+    // FIXED: Restored the query that checks actual user saves!
+    const { data } = await _supabase.from('user_saves').select('username, squad').not('squad', 'is', null);
+    if (!data) return;
 
-            const todayStr = new Date().toLocaleDateString();
-            let todayPulls = [];
-            data.forEach(user => {
-                (user.squad || []).forEach(card => {
-                    if (card.collectedDate === todayStr) {
-                        todayPulls.push({ ...card, pulledBy: user.username || 'ANONYMOUS' });
-                    }
-                });
-            });
-
-            todayPulls.sort((a, b) => getCardValue(b) - getCardValue(a));
-            const top10 = todayPulls.slice(0, 10);
-
-            if (top10.length === 0) {
-                const { data: fallback } = await _supabase.from('collection').select('*').gte('rating', 88).limit(10);
-                if (fallback) {
-                    track.innerHTML = [...fallback, ...fallback].map(p =>
-                        `<div class="store-pull-item">${generateCardHtml(p, false)}<div class="store-pull-username">TODAY'S PULLS</div></div>`
-                    ).join('');
-                }
-                return;
+    const todayStr = new Date().toLocaleDateString();
+    let todayPulls = [];
+    data.forEach(user => {
+        (user.squad || []).forEach(card => {
+            if (card.collectedDate === todayStr) {
+                todayPulls.push({ ...card, pulledBy: user.username || 'ANONYMOUS' });
             }
+        });
+    });
 
-            const items = [...top10, ...top10].map(p =>
-                `<div class="store-pull-item">${generateCardHtml(p, false)}<div class="store-pull-username">${p.pulledBy}</div></div>`
+    todayPulls.sort((a, b) => getCardValue(b) - getCardValue(a));
+    const top10 = todayPulls.slice(0, 10);
+
+    if (top10.length === 0) {
+        // FIXED: The fallback now correctly searches for rating 9+ instead of 88+
+        const { data: fallback } = await _supabase.from('collection').select('*').gte('rating', 9).limit(10);
+        if (fallback) {
+            track.innerHTML = [...fallback, ...fallback].map(p =>
+                `<div class="store-pull-item">${generateCardHtml(p, false)}<div class="store-pull-username">TODAY'S PULLS</div></div>`
             ).join('');
-            track.innerHTML = items;
         }
+        return;
+    }
+
+    const items = [...top10, ...top10].map(p =>
+        `<div class="store-pull-item">${generateCardHtml(p, false)}<div class="store-pull-username">${p.pulledBy}</div></div>`
+    ).join('');
+    track.innerHTML = items;
+}
 
         function updateWelcomeMsg() {
             const username = currentUser?.user_metadata?.username || currentUser?.email || 'TRAINER';
@@ -443,7 +443,7 @@
         // ─── MARQUEE ─────────────────────────────────────────────────────────────
         async function initMarquee() {
             const track = document.getElementById('marquee-track');
-            const { data } = await _supabase.from('collection').select('*').gte('rating', 85);
+            const { data } = await _supabase.from('collection').select('*').gte('rating', 8);
             if (data) { track.innerHTML = [...data, ...data].map(p => generateCardHtml(p, false)).join(''); }
         }
 
@@ -511,7 +511,8 @@
                 }
             }
 
-            if (!pulledPlayer && roll < (pack['1st_edition_odds'] || 0)) {
+            // FIX 1: Pointing to your 'promo_odds' database column
+            if (!pulledPlayer && pack.promo_odds > 0 && roll < pack.promo_odds) {
                 const { data: promoPool } = await _supabase.from('collection').select('*').ilike('rarity', '1st edition');
                 if (promoPool && promoPool.length > 0) {
                     pulledPlayer = promoPool[Math.floor(Math.random() * promoPool.length)];
@@ -519,7 +520,16 @@
             }
 
             if (!pulledPlayer) {
-                const rules = pack.rarity_rules || [];
+                // FIX 2: Pointing to your 'odds_config' database column
+                const rules = pack.odds_config || [];
+                
+                // SAFETY NET: Stops the infinite loading if odds are missing
+                if (rules.length === 0) {
+                    hideLoading(); 
+                    showToast("Pack odds missing! Check Supabase."); 
+                    return;
+                }
+
                 let cumulative = 0;
                 let rule = rules[rules.length - 1];
                 for (const r of rules) {
@@ -529,8 +539,16 @@
                 const { data } = await _supabase.from('collection').select('*')
                     .gte('rating', rule.min).lte('rating', rule.max)
                     .neq('rarity', 'Limited').neq('rarity', '1st edition').eq('in_packs', true);
+                
                 let poolData = (data && data.length > 0) ? data : (await _supabase.from('collection').select('*').limit(20)).data;
                 pulledPlayer = poolData[Math.floor(Math.random() * poolData.length)];
+            }
+
+            // SAFETY NET 2: If the database is completely empty
+            if (!pulledPlayer) {
+                hideLoading();
+                showToast("No cards found in the database to pull!");
+                return;
             }
 
             if (pulledPlayer.rating >= holoConfig.min_rating && Math.random() < holoConfig.chance) {
@@ -694,7 +712,7 @@
         }
 
         // ─── CARD HTML ───────────────────────────────────────────────────────────
-                function generateCardHtml(p, clickable = true) {
+               function generateCardHtml(p, clickable = true, clickType = 'details') {
     const rarity    = (p.rarity || 'basic').toLowerCase();
     const typeClass = getCardType(p);
     const typeIcon  = TYPE_ICONS[typeClass] || '⭐';
@@ -703,25 +721,29 @@
     const isFullArt = rarity === 'ultra rare' || rarity === 'secret rare'
                    || rarity === 'limited'    || rarity === '1st edition';
     const val = getCardValue(p);
-    const clickAttr = clickable ? `onclick="showCardDetails('${p.instanceId}')"` : '';
+    
+    let clickAttr = '';
+    if (clickable) {
+        if (clickType === 'details') {
+            // If owned, pass ID. If catalog, pass the whole object.
+            const target = p.instanceId ? `'${p.instanceId}'` : JSON.stringify(p).replace(/"/g, '&quot;');
+            clickAttr = `onclick="showCardDetails(${target})"`;
+        } else {
+            // Direct zoom trigger
+            const cardData = JSON.stringify(p).replace(/"/g, '&quot;');
+            clickAttr = `onclick="zoomCard(${cardData})"`;
+        }
+    }
 
     return `
 <div class="pokemon-card ${rarityClass} type-${typeClass}" ${clickAttr}>
     ${isFullArt ? `<img src="${p.image_url}" class="card-full-image">` : ''}
-
     <div class="card-header ${isFullArt ? 'full-art-ui' : ''}">
         <span class="card-stage">${typeIcon} ${typeClass.toUpperCase()}</span>
         <span class="card-name">${p.name}</span>
     </div>
-
-    ${!isFullArt ? `
-        <div class="card-portrait-frame">
-            <img src="${p.image_url}" class="card-image">
-        </div>
-    ` : ''}
-
+    ${!isFullArt ? `<div class="card-portrait-frame"><img src="${p.image_url}" class="card-image"></div>` : ''}
     <div style="flex-grow: 1;"></div>
-
     <div class="card-footer ${isFullArt ? 'full-art-ui bottom-gradient' : ''}">
         <div style="display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: 2px;">
             <span style="font-weight: 900; font-size: 0.6rem; letter-spacing: 1px;">${rarity.toUpperCase()}</span>
@@ -732,7 +754,6 @@
             <div style="font-size: 0.95rem; font-weight: 900; line-height: 1;">${val.toLocaleString()} 🪙</div>
         </div>
     </div>
-
     ${p.isSuperHolo ? '<div class="holo-sheen"></div>' : ''}
     ${p.serialNumber ? `<div class="card-serial">#${p.serialNumber}/10</div>` : ''}
 </div>`;
@@ -740,59 +761,41 @@
         // ─── CARD DETAILS MODAL ──────────────────────────────────────────────────
         let _modalCurrentId = null;
 
-        function showCardDetails(id) {
-            const p = mySquad.find(player => player.instanceId == id);
-            if (!p) return;
-            _modalCurrentId = id;
-            const val = getCardValue(p);
-            document.getElementById('modal-card-render').innerHTML = generateCardHtml(p, false);
-            document.getElementById('val-orig').innerText  = val.toLocaleString() + " 🪙";
-            const actualSellValue = getSellValue(p);
-            document.getElementById('val-sell').innerText  = actualSellValue > 0 ? actualSellValue.toLocaleString() + " 🪙" : 'NOT FOR SALE';
-            document.getElementById('val-date').innerText  = p.collectedDate || "Historical";
+        function showCardDetails(idOrObj) {
+    let p;
+    // Determine if we were passed an ID (owned) or a card object (catalog)
+    if (typeof idOrObj === 'string') {
+        p = mySquad.find(player => player.instanceId == idOrObj);
+    } else {
+        p = idOrObj;
+    }
+    if (!p) return;
 
-            const favBtn = document.getElementById('modal-fav-btn');
-            if (p.isFavorite) {
-                favBtn.innerText = '⭐ FAVOURITED';
-                favBtn.style.borderColor = '#ffd700'; favBtn.style.color = '#ffd700';
-            } else {
-                favBtn.innerText = '☆ FAVOURITE';
-                favBtn.style.borderColor = '#2a2a3a'; favBtn.style.color = '#888';
-            }
+    _modalCurrentId = p.instanceId || null;
+    const val = getCardValue(p);
+    
+    // NEW: The card inside the modal now triggers the Zoom when clicked!
+    document.getElementById('modal-card-render').innerHTML = generateCardHtml(p, true, 'zoom');
+    
+    document.getElementById('val-orig').innerText  = val.toLocaleString() + " 🪙";
+    document.getElementById('val-sell').innerText  = p.instanceId ? getSellValue(p).toLocaleString() + " 🪙" : 'NOT OWNED';
+    document.getElementById('val-date').innerText  = p.collectedDate || "Not in Collection";
 
-            const scBtn = document.getElementById('modal-showcase-btn');
-            if (p.isShowcase) {
-                scBtn.innerText = '🏆 CURRENT SHOWCASE';
-                scBtn.style.borderColor = '#ffcb05'; scBtn.style.color = '#ffcb05';
-                scBtn.style.background  = 'rgba(255,203,5,0.1)';
-            } else {
-                scBtn.innerText = '🏆 SET AS SHOWCASE';
-                scBtn.style.borderColor = '#2a2a3a'; scBtn.style.color = '#888';
-                scBtn.style.background  = 'none';
-            }
+    // Toggle UI visibility based on if you own the card
+    const controls = ['modal-fav-btn', 'modal-showcase-btn', 'modal-sell-btn'];
+    controls.forEach(cid => document.getElementById(cid).style.display = p.instanceId ? 'block' : 'none');
 
-            const sellBtn = document.getElementById('modal-sell-btn');
-            const isExchangeCard = (p.rarity || '').toLowerCase() === 'exchange' || p.isExchange;
-            if (isExchangeCard) {
-                sellBtn.disabled = true;
-                sellBtn.innerText = '🔁 EXCHANGE REWARD — CANNOT SELL';
-                sellBtn.style.background = '#1a1a0a'; sellBtn.onclick = null;
-            } else if (p.isFavorite) {
-                sellBtn.disabled = true;
-                sellBtn.innerText = '⭐ UNFAVOURITE FIRST TO SELL';
-                sellBtn.style.background = '#1a1a28'; sellBtn.onclick = null;
-            } else if (_lockedCardIds.has(p.instanceId)) {
-                sellBtn.disabled = true;
-                sellBtn.innerText = '🔒 LOCKED IN ACTIVE TRADE';
-                sellBtn.style.background = '#1a1a28'; sellBtn.onclick = null;
-            } else {
-                sellBtn.disabled = false;
-                sellBtn.innerText = 'QUICK SELL';
-                sellBtn.style.background = '#ef4444';
-                sellBtn.onclick = () => { if (confirm("Sell " + p.name + "?")) { finalizeSale(id); } };
-            }
-            document.getElementById('modal-overlay').style.display = 'flex';
-        }
+    document.getElementById('modal-overlay').style.display = 'flex';
+}
+function zoomCard(p) {
+    const overlay = document.getElementById('card-zoom-overlay');
+    const content = document.getElementById('zoom-content');
+    
+    // This calls your card generator but turns off clicking so you don't get stuck in a loop
+    content.innerHTML = generateCardHtml(p, false); 
+    
+    overlay.style.display = 'flex';
+}
 
         async function modalToggleFavorite() {
             if (!_modalCurrentId) return;
@@ -943,7 +946,7 @@
             const grid = document.getElementById('catalog-grid');
             if (error) { grid.innerHTML = `<p style="color:red">Error: ${error.message}</p>`; return; }
             data.sort((a, b) => getCardValue(b) - getCardValue(a));
-            grid.innerHTML = data.map(p => generateCardHtml(p, false)).join('');
+           grid.innerHTML = data.map(p => generateCardHtml(p, true, 'details')).join('');
         }
 
         // ─── MULTI-SELECT ─────────────────────────────────────────────────────────
@@ -1064,7 +1067,7 @@
             activeTab: 'board',
             postSelectedCard: null,
             wantRarity: 'any',
-            wantMinRating: 70,
+            wantMinRating: 4,
             pendingAcceptTrade: null,
             pendingAcceptMyCard: null,
         };
@@ -1085,7 +1088,7 @@
                 const labels = { common:'Basic', silver:'Rare', gold:'Ultra Rare', limited:'Limited', holo:'Secret Rare' };
                 parts.push(labels[trade.want_rarity] || trade.want_rarity);
             }
-            if (trade.want_min_rating && trade.want_min_rating > 70) parts.push(trade.want_min_rating + '+');
+            if (trade.want_min_rating && trade.want_min_rating > 1) parts.push('Rating ' + trade.want_min_rating + '+');
             if (trade.want_name) parts.push('"' + trade.want_name + '"');
             return parts.length ? parts.join(' · ') : 'Any Card';
         }
@@ -1151,7 +1154,7 @@
                 const labels = { common:'Basic', silver:'Rare', gold:'Ultra Rare', limited:'Limited', holo:'Secret Rare' };
                 parts.push(labels[rarity] || rarity);
             }
-            if (minRat > 70) parts.push(`HP ${Math.round(minRat * 3.5)}+`);
+            if (minRat > 1) parts.push('Rating ' + minRat + '+');
             if (nameVal) parts.push(`"${nameVal}"`);
 
             const summary = document.getElementById('want-summary');
@@ -1388,7 +1391,7 @@
 
         async function getStandardCardForBattle() {
             const { data, error } = await _supabase.from('collection').select('*')
-                .gte('rating', 70).lte('rating', 95).neq('rarity','Limited').neq('rarity','1st edition').limit(50);
+                .gte('rating', 4).lte('rating', 10).neq('rarity','Limited').neq('rarity','1st edition').limit(50);
             if (error || !data || data.length === 0) return null;
             return data[Math.floor(Math.random() * data.length)];
         }
@@ -1627,3 +1630,10 @@
 
         // ─── INIT ─────────────────────────────────────────────────────────────────
         window.addEventListener('load', checkExistingSession);
+
+        function zoomCard(p) {
+    const overlay = document.getElementById('card-zoom-overlay');
+    const content = document.getElementById('zoom-content');
+    content.innerHTML = generateCardHtml(p, false); // Render the card without click events
+    overlay.style.display = 'flex';
+}
