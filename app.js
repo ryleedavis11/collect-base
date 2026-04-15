@@ -210,7 +210,7 @@
 
         function updateWelcomeMsg() {
             const username = currentUser?.user_metadata?.username || currentUser?.email || 'TRAINER';
-            document.getElementById('welcome-msg').innerText = `WELCOME TO POKÉDRAFT BETA, ${username.toUpperCase()}`;
+            document.getElementById('welcome-msg').innerText = `WELCOME TO THE COLLECTION BASE BETA, ${username.toUpperCase()}`;
         }
 
         // ─── CLOUD SAVE ──────────────────────────────────────────────────────────
@@ -694,62 +694,49 @@
         }
 
         // ─── CARD HTML ───────────────────────────────────────────────────────────
-        function generateCardHtml(p, clickable = true) {
-            const rarity    = (p.rarity || 'basic').toLowerCase();
-            const typeClass = getCardType(p);
-            const typeIcon  = TYPE_ICONS[typeClass] || '⭐';
+                function generateCardHtml(p, clickable = true) {
+    const rarity    = (p.rarity || 'basic').toLowerCase();
+    const typeClass = getCardType(p);
+    const typeIcon  = TYPE_ICONS[typeClass] || '⭐';
+    const rarityClass = rarity.replace(' ', '-'); 
 
-            const isFullArt = rarity === 'ultra rare' || rarity === 'secret rare'
-                           || rarity === 'limited'    || rarity === '1st edition';
-            const val = getCardValue(p);
-            const clickAttr = clickable ? `onclick="showCardDetails('${p.instanceId}')"` : '';
+    const isFullArt = rarity === 'ultra rare' || rarity === 'secret rare'
+                   || rarity === 'limited'    || rarity === '1st edition';
+    const val = getCardValue(p);
+    const clickAttr = clickable ? `onclick="showCardDetails('${p.instanceId}')"` : '';
 
-            const hpDisplay = Math.round((p.rating || 70) * 3.5);
+    return `
+<div class="pokemon-card ${rarityClass} type-${typeClass}" ${clickAttr}>
+    ${isFullArt ? `<img src="${p.image_url}" class="card-full-image">` : ''}
 
-            const flavors = {
-                'basic':       'A common sight in the wild.',
-                'rare':        'Rarely encountered in battle.',
-                'ultra rare':  'An exceptionally powerful specimen.',
-                'secret rare': 'Legends speak of this card.',
-                'limited':     `Serial #${p.serialNumber || '?'}/10 — One of the rarest of all.`,
-                '1st edition': 'A prized 1st Edition printing.'
-            };
-            const flavorText = flavors[rarity] || 'A mysterious Pokémon card.';
+    <div class="card-header ${isFullArt ? 'full-art-ui' : ''}">
+        <span class="card-stage">${typeIcon} ${typeClass.toUpperCase()}</span>
+        <span class="card-name">${p.name}</span>
+    </div>
 
-            return `
-        <div class="pokemon-card ${rarity} type-${typeClass}" ${clickAttr}>
-            ${isFullArt ? `<img src="${p.image_url}" class="card-full-image">` : ''}
+    ${!isFullArt ? `
+        <div class="card-portrait-frame">
+            <img src="${p.image_url}" class="card-image">
+        </div>
+    ` : ''}
 
-            <div class="card-header ${isFullArt ? 'full-art-ui' : ''}">
-                <span class="card-stage">${typeIcon} ${typeClass.toUpperCase()}</span>
-                <span class="card-name">${p.name}</span>
-                <div class="hp-group"><small>HP</small><span class="card-hp">${hpDisplay}</span></div>
-            </div>
+    <div style="flex-grow: 1;"></div>
 
-            ${!isFullArt ? `
-                <div class="card-portrait-frame">
-                    <img src="${p.image_url}" class="card-image">
-                </div>
-            ` : ''}
+    <div class="card-footer ${isFullArt ? 'full-art-ui bottom-gradient' : ''}">
+        <div style="display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: 2px;">
+            <span style="font-weight: 900; font-size: 0.6rem; letter-spacing: 1px;">${rarity.toUpperCase()}</span>
+            <span style="color: #ffd700; font-weight: bold; font-size: 0.6rem;">${p.isSuperHolo ? '✨ HOLO' : ''}</span>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-size: 0.5rem; color: ${isFullArt ? '#ddd' : '#555'}; letter-spacing: 1px; margin-bottom: 2px;">VALUE</div>
+            <div style="font-size: 0.95rem; font-weight: 900; line-height: 1;">${val.toLocaleString()} 🪙</div>
+        </div>
+    </div>
 
-            <div class="card-body ${isFullArt ? 'full-art-ui' : ''}">
-                <div class="card-stat-line">
-                    <span class="stat-label">Value</span>
-                    <span class="stat-value">${val.toLocaleString()} 🪙</span>
-                </div>
-                <div class="flavor-text">${flavorText}</div>
-            </div>
-
-            <div class="card-footer ${isFullArt ? 'full-art-ui' : ''}">
-                <span>${rarity.toUpperCase()}</span>
-                <span>${p.isSuperHolo ? '✨ HOLO' : ''}</span>
-            </div>
-
-            ${p.isSuperHolo ? '<div class="holo-sheen"></div>' : ''}
-            ${p.serialNumber ? `<div class="card-serial">#${p.serialNumber}/10</div>` : ''}
-        </div>`;
-        }
-
+    ${p.isSuperHolo ? '<div class="holo-sheen"></div>' : ''}
+    ${p.serialNumber ? `<div class="card-serial">#${p.serialNumber}/10</div>` : ''}
+</div>`;
+}
         // ─── CARD DETAILS MODAL ──────────────────────────────────────────────────
         let _modalCurrentId = null;
 

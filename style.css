@@ -659,3 +659,36 @@ nav button.active { color: var(--accent); border-bottom: 2px solid var(--accent)
 ::-webkit-scrollbar       { width: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* REMOVES THE BACKGROUND BOX BEHIND THE VALUE TEXT */
+.card-body,
+.ultra-rare .card-body,
+.secret-rare .card-body,
+.limited .card-body {
+    background: transparent !important;
+    backdrop-filter: none !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Removes the faint line under the "Value" text for a cleaner floating look */
+.card-stat-line {
+    border-bottom: none !important;
+}
+
+/* Protects the footer text on full-art cards */
+.card-footer.bottom-gradient {
+    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%);
+    margin: 0 -10px -10px; /* Stretches the shadow to the edges */
+    padding: 20px 10px 10px; /* Gives the text room to breathe */
+    border-radius: 0 0 10px 10px;
+}
+
+/* Adjusts the overall footer layout so items align to the bottom */
+.card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    z-index: 10; 
+    position: relative;
+}
