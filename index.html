@@ -30,7 +30,7 @@
     </div>
  
     <nav id="main-nav">
-        <div class="nav-metric nav-left">CLUB VALUE: <span id="nav-club-value">0</span> 🪙</div>
+        <div class="nav-metric nav-left">DEX VALUE: <span id="nav-dex-value">0</span> 🪙</div>
         <div class="nav-center">
             <button id="nav-home" onclick="showView('home')">HOME</button>
             <button id="nav-slots" onclick="showView('slots')">STORE</button>
@@ -131,27 +131,39 @@
                 <div id="limited-stock-list" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;"></div>
             </div>
         </div>
-        <div id="catalog-container" style="display: none; width: 100%; max-width: 1050px; margin: 0 auto;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <div style="width: 160px;"></div>
-                <h2 style="color: #3ecf8e; margin: 0; text-align: center;">CARD DATABASE</h2>
-                <button class="btn" style="background: #ef4444; width: 160px; padding: 8px 15px; margin: 0;" onclick="closeCatalog()">BACK TO PACKS</button>
-            </div>
-            <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center;">
-                <button class="btn" style="background: #cd7f32; width: auto; padding: 10px 20px;" onclick="loadCatalog('common')">BRONZE</button>
-                <button class="btn" style="background: #c0c0c0; color: black; width: auto; padding: 10px 20px;" onclick="loadCatalog('silver')">SILVER</button>
-                <button class="btn" style="background: #ffd700; color: black; width: auto; padding: 10px 20px;" onclick="loadCatalog('gold')">GOLD</button>
-                <button class="btn" style="background: #ff41c6; color: black; width: auto; padding: 10px 20px; box-shadow: 0 0 10px #bebebe;" onclick="loadCatalog('limited')">LIMITED</button>
-                <button class="btn" style="background: #00f2ff; color: black; width: auto; padding: 10px 20px; box-shadow: 0 0 10px #00f2ff;" onclick="loadCatalog('holo')">HOLO</button>
-                    <button class="btn" style="background: #ff4500; color: white; width: auto; padding: 10px 20px; box-shadow: 0 0 15px rgba(255,69,0,0.6);" onclick="loadCatalog('1st edition')">1ST EDITION</button>
-                    <button class="btn" style="background: #f97316; color: black; width: auto; padding: 10px 20px; box-shadow: 0 0 15px rgba(249,115,22,0.5);" onclick="loadCatalog('exchange')">⚡ EXCHANGE</button>
-            </div>
-            <div id="holo-note" style="display: none; color: #00f2ff; font-size: 0.9rem; margin-bottom: 20px; font-style: italic;">
-                * Holos are rare every 85+ rated card you pull has a 2% chance to become a Holo.
-            </div>
-            <div id="catalog-grid" class="team-grid"></div>
-        </div>
+        <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center;">
+    <button class="btn" style="background: #ffcb05; color: black; width: auto; padding: 10px 20px;" 
+            onclick="loadCatalog('basic')">BASIC</button>
+            
+    <button class="btn" style="background: #c0c0c0; color: black; width: auto; padding: 10px 20px;" 
+            onclick="loadCatalog('rare')">RARE</button>
+            
+    <button class="btn" style="background: #e0e0e0; color: black; width: auto; padding: 10px 20px; box-shadow: 0 0 10px #fff;" 
+            onclick="loadCatalog('ultra rare')">ULTRA RARE</button>
+            
+    <button class="btn" style="background: #ffd700; color: black; width: auto; padding: 10px 20px; box-shadow: 0 0 15px #ffd700;" 
+            onclick="loadCatalog('illustration rare')">ILLUSTRATION RARE</button>
+            
+    <button class="btn" style="background: #00f2ff; color: black; width: auto; padding: 10px 20px; box-shadow: 0 0 10px #00f2ff;" 
+            onclick="loadCatalog('holo')">HOLO</button>
+</div>
     </div>
+    <div id="catalog-container" style="display: none; width: 100%; max-width: 1200px; margin: 0 auto; padding: 20px;">
+    
+    <button class="btn" style="background: #333; margin-bottom: 20px; width: auto;" onclick="closeCatalog()">
+        ← BACK TO STORE
+    </button>
+
+    <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center;">
+        <button class="btn" style="background: #ffcb05; color: black; width: auto; padding: 10px 20px;" onclick="loadCatalog('basic')">BASIC</button>
+        <button class="btn" style="background: #c0c0c0; color: black; width: auto; padding: 10px 20px;" onclick="loadCatalog('rare')">RARE</button>
+        <button class="btn" style="background: #e0e0e0; color: black; width: auto; padding: 10px 20px; box-shadow: 0 0 10px #fff;" onclick="loadCatalog('ultra rare')">ULTRA RARE</button>
+        <button class="btn" style="background: #ffd700; color: black; width: auto; padding: 10px 20px; box-shadow: 0 0 15px #ffd700;" onclick="loadCatalog('illustration rare')">ILLUSTRATION RARE</button>
+        <button class="btn" style="background: #00f2ff; color: black; width: auto; padding: 10px 20px; box-shadow: 0 0 10px #00f2ff;" onclick="loadCatalog('holo')">HOLO</button>
+    </div>
+
+    <div id="catalog-grid" class="team-grid"></div>
+</div>
  
                     <div id="view-rank" class="view">
                     <div class="rank-wrapper">

@@ -196,7 +196,7 @@
 
             if (top10.length === 0) {
                 // Fallback: show random high-rated cards so the marquee isn't empty
-                const { data: fallback } = await _supabase.from('soccer_stars').select('*').gte('rating', 88).limit(10);
+                const { data: fallback } = await _supabase.from('collection').select('*').gte('rating', 88).limit(10);
                 if (fallback) {
                     track.innerHTML = [...fallback, ...fallback].map(p =>
                         `<div class="store-pull-item">${generateCardHtml(p, false)}<div class="store-pull-username">TODAY'S PULLS</div></div>`
@@ -509,7 +509,7 @@
         // ─── MARQUEE ─────────────────────────────────────────────────────────────
         async function initMarquee() {
             const track = document.getElementById('marquee-track');
-            const { data } = await _supabase.from('soccer_stars').select('*').gte('rating', 85);
+            const { data } = await _supabase.from('collection').select('*').gte('rating', 85);
             if (data) { track.innerHTML = [...data, ...data].map(p => generateCardHtml(p, false)).join(''); }
         }
  
@@ -594,7 +594,7 @@
 
     // 2. Check Limited Pull (using DB odds)
     if (Math.random() * 100 < pack.limited_odds) {
-        const { data: limitedPool } = await _supabase.from('soccer_stars').select('*').ilike('rarity', 'Limited');
+        const { data: limitedPool } = await _supabase.from('collection').select('*').ilike('rarity', 'Limited');
         if (limitedPool && limitedPool.length > 0) {
             let potential = limitedPool[Math.floor(Math.random() * limitedPool.length)];
             const { data: countData } = await _supabase.rpc('count_limited_player', { pid: potential.id });
@@ -611,11 +611,11 @@
             else if (promoRatingRoll < 90) { pMin = 87; pMax = 89; }
             else                           { pMin = 90; pMax = 99; }
 
-            let { data: promoPool } = await _supabase.from('soccer_stars').select('*')
+            let { data: promoPool } = await _supabase.from('collection').select('*')
                 .ilike('rarity', '1st edition').gte('rating', pMin).lte('rating', pMax).eq('in_packs', true);
             
             if (!promoPool || promoPool.length === 0) {
-                const fallbackPool = await _supabase.from('soccer_stars').select('*').ilike('rarity', '1st edition').eq('in_packs', true);
+                const fallbackPool = await _supabase.from('collection').select('*').ilike('rarity', '1st edition').eq('in_packs', true);
                 promoPool = fallbackPool.data;
             }
             if (promoPool && promoPool.length > 0) {
@@ -637,7 +637,7 @@ for (const r of pack.odds_config) {
     }
 }
         
-        let { data } = await _supabase.from('soccer_stars')
+        let { data } = await _supabase.from('collection')
             .select('*')
             .gte('rating', rule.min)
             .lte('rating', rule.max)
@@ -646,7 +646,7 @@ for (const r of pack.odds_config) {
             .eq('in_packs', true);
             
         if (!data || data.length === 0) { 
-            let fallback = await _supabase.from('soccer_stars').select('*').limit(20); 
+            let fallback = await _supabase.from('collection').select('*').limit(20); 
             data = fallback.data; 
         }
         pulledPlayer = data[Math.floor(Math.random() * data.length)];
@@ -814,36 +814,54 @@ for (const r of pack.odds_config) {
         }
  
         // ─── CARD HTML ───────────────────────────────────────────────────────────
-        function generateCardHtml(p, clickable = true) {
-            const rarity = (p.rarity || 'common').toLowerCase();
-            const is1st   = rarity === '1st edition';
-            const holoClass = p.isSuperHolo ? 'super-holo' : '';
-            const artClass = p.id === 64 ? 'full-art' : '';
-            const val = getCardValue(p);
-            const clickAttr = clickable ? `onclick="showCardDetails('${p.instanceId}')"` : '';
-            const isFav = p.isFavorite ? true : false;
+       function generateCardHtml(p, clickable = true) {
+    const rarity = (p.rarity || 'basic').toLowerCase();
+    
+    // Type mapping remains the same
+    const typeMap = { 'ST': 'fire', 'RW': 'fire', 'LW': 'fire', 'CM': 'grass', 'CDM': 'grass', 'CAM': 'grass', 'CB': 'fighting', 'LB': 'water', 'RB': 'water', 'GK': 'psychic' };
+    const typeClass = typeMap[p.position] || 'neutral';
+    
+    const isFullArt = rarity === 'ultra rare' || rarity === 'illustration rare';
+    const val = getCardValue(p);
+    const clickAttr = clickable ? `onclick="showCardDetails('${p.instanceId}')"` : '';
 
-            // 1st edition: use cyan for pos/rating badges, add 1ST badge
-            const posBg  = is1st ? '#00c8ff' : '#3ecf8e';
-            const ovrBg  = is1st ? '#001aff' : '#ffd700';
-            const ovrColor = is1st ? '#fff' : 'black';
-            const firstBadge = is1st
-                ? `<div class="badge" style="top:auto;bottom:68px;left:10px;background:linear-gradient(135deg,#00f2ff,#0055ff);color:#fff;font-size:0.55rem;padding:2px 6px;letter-spacing:1px;">1ST ED</div>`
-                : '';
-            const favBadge = ''; // Fav shown in modal only (Fix 6)
+    return `
+        <div class="pokemon-card ${rarity} type-${typeClass}" ${clickAttr}>
+            <img src="${p.image_url}" class="card-full-image">
 
-            return `<div class="premium-card ${rarity} ${holoClass} ${artClass}" ${clickAttr}>
-                        <div class="badge card-pos" style="background:${posBg};color:black">${p.position}</div>
-                        <div class="badge card-ovr" style="background:${ovrBg};color:${ovrColor}">${p.rating}</div>
-                        ${firstBadge}
-                        ${p.serial ? `<div class="card-serial">LIMITED ${p.serial}/10</div>` : ''}
-                        ${favBadge}
-                        <img src="${p.image_url}" class="player-img">
-                        <div class="nameplate">
-                            <div class="card-name">${p.name}</div>
-                            <div class="card-price" style="${p.isSuperHolo ? 'color:#00f2ff' : ''}">Value: ${val.toLocaleString()}</div>
-                        </div>
-                    </div>`;
+            <div class="card-header full-art-ui">
+                <span class="card-stage">${rarity.toUpperCase()}</span>
+                <span class="card-name">${p.name}</span>
+                <div class="hp-group">
+                    <small>HP</small>
+                    <span class="card-hp">${p.rating}</span>
+                </div>
+            </div>
+
+            ${!isFullArt ? `
+                <div class="card-portrait-frame">
+                    <img src="${p.image_url}" class="card-image">
+                </div>
+            ` : ''}
+
+            <div class="card-body full-art-ui">
+                <div class="card-stat-line">
+                    <span class="stat-label">Value</span>
+                    <span class="stat-value">${val.toLocaleString()} 🪙</span>
+                </div>
+                <div class="flavor-text">
+                    This ${rarity} creature is a rare sight in the wild.
+                </div>
+            </div>
+
+            <div class="card-footer full-art-ui">
+                <span>weakness 💧 x2</span>
+                <span>retreat ⚪</span>
+            </div>
+            
+            ${rarity === 'ultra rare' ? '<div class="holo-sheen"></div>' : ''}
+        </div>`;
+
         }
  
         // ─── CARD DETAILS MODAL ──────────────────────────────────────────────────
@@ -989,16 +1007,22 @@ for (const r of pack.odds_config) {
         }
  
         function updateUI() {
-            document.querySelectorAll('.bal-text').forEach(el => el.innerText = balance.toLocaleString());
-            document.querySelectorAll('.team-count-menu').forEach(el => el.innerText = mySquad.length);
-            // Club value = sum of top 10 cards by market value (Fix 5)
-            const top10Val = [...mySquad]
-                .sort((a,b) => getCardValue(b) - getCardValue(a))
-                .slice(0, 10)
-                .reduce((sum, p) => sum + getCardValue(p), 0);
-            document.getElementById('nav-club-value').innerText = top10Val.toLocaleString();
-            document.getElementById('team-count').innerText = mySquad.length;
-        }
+    // Updates your currency balance
+    document.querySelectorAll('.bal-text').forEach(el => el.innerText = balance.toLocaleString());
+    
+    // Updates the total count of creatures in your collection
+    document.querySelectorAll('.team-count-menu').forEach(el => el.innerText = mySquad.length);
+    
+    // Logic: Sum of top 10 creatures by market value for your "Collector Score"
+    const collectorScore = [...mySquad]
+        .sort((a,b) => getCardValue(b) - getCardValue(a))
+        .slice(0, 10)
+        .reduce((sum, p) => sum + getCardValue(p), 0);
+        
+    // Update the ID here to match your HTML change below
+    document.getElementById('nav-dex-value').innerText = collectorScore.toLocaleString();
+    document.getElementById('team-count').innerText = mySquad.length;
+}
  
         function renderSquad() {
             const grid = document.getElementById('teamGrid');
@@ -1037,11 +1061,11 @@ for (const r of pack.odds_config) {
  
         // ─── CATALOG ─────────────────────────────────────────────────────────────
         function openCatalog() {
-            document.getElementById('slot-container').style.display = 'none';
-            document.getElementById('catalog-toggle-btn').style.display = 'none';
-            document.getElementById('catalog-container').style.display = 'block';
-            loadCatalog('gold');
-        }
+    document.getElementById('slot-container').style.display = 'none';
+    document.getElementById('catalog-toggle-btn').style.display = 'none';
+    document.getElementById('catalog-container').style.display = 'block';
+    loadCatalog('basic'); // Change 'gold' to 'basic' here
+}
  
         function closeCatalog() {
             document.getElementById('catalog-container').style.display = 'none';
@@ -1050,19 +1074,32 @@ for (const r of pack.odds_config) {
         }
  
         async function loadCatalog(tier) {
-            showLoading();
-            let query = _supabase.from('soccer_stars').select('*');
-            if (tier === 'holo') query = query.gte('rating', 85);
-            else query = query.ilike('rarity', tier);
-            const { data, error } = await query;
-            hideLoading();
-            const grid = document.getElementById('catalog-grid');
-            if (error) { grid.innerHTML = `<p style="color:red">Error: ${error.message}</p>`; return; }
-            if (tier === 'holo') data.forEach(p => p.isSuperHolo = true);
-            data.sort((a, b) => getCardValue(b) - getCardValue(a));
-            grid.innerHTML = data.map(p => generateCardHtml(p, false)).join('');
-        }
- 
+    showLoading();
+    // 1. Point to the new 'collection' table
+    let query = _supabase.from('collection').select('*');
+
+    // 2. Filter by your new Pokémon rarities
+    if (tier === 'holo') {
+        query = query.eq('isSuperHolo', true); // Specialized filter for Holos
+    } else {
+        query = query.ilike('rarity', tier); // 'basic', 'rare', 'ultra rare', etc.
+    }
+
+    const { data, error } = await query;
+    hideLoading();
+
+    const grid = document.getElementById('catalog-grid');
+    if (error) { 
+        grid.innerHTML = `<p style="color:red">Error: ${error.message}</p>`; 
+        return; 
+    }
+
+    // 3. Sort by market value descending
+    data.sort((a, b) => getCardValue(b) - getCardValue(a));
+
+    // 4. Render using the new Pokémon Card HTML
+    grid.innerHTML = data.map(p => generateCardHtml(p, false)).join('');
+}
  
 
         // ─── TRADE CONFIRM DISPATCHER ────────────────────────────────────────────
@@ -1625,7 +1662,7 @@ for (const r of pack.odds_config) {
         // ─── EXCHANGES ────────────────────────────────────────────────────────
         //
         // HOW TO ADD A NEW EXCHANGE:
-        //   1. Add your reward card to soccer_stars in Supabase:
+        //   1. Add your reward card to collection in Supabase:
         //      - rarity = 'exchange'
         //      - in_packs = false
         //      - base_price = whatever you want (no quick sell, just market value)
@@ -1762,7 +1799,7 @@ for (const r of pack.odds_config) {
             let cardDb = {};
             if (allIds.length > 0) {
                 const { data: cards } = await _supabase
-                    .from('soccer_stars')
+                    .from('collection')
                     .select('*')
                     .in('id', allIds);
                 (cards || []).forEach(c => { cardDb[c.id] = c; });
@@ -1890,7 +1927,7 @@ async function doExchange(exchangeId) {
         let rewardCard = null;
         if (exc.rewardId) {
             const { data } = await _supabase
-                .from('soccer_stars')
+                .from('collection')
                 .select('*')
                 .eq('id', exc.rewardId)
                 .single();
@@ -2386,7 +2423,7 @@ async function showPackPlayerList(tier) {
     const range = PACK_RATING_RANGES[tier];
     if (!range) return;
 
-    let query = _supabase.from('soccer_stars').select('*')
+    let query = _supabase.from('collection').select('*')
         .gte('rating', range.min)
         .lte('rating', range.max)
         .eq('in_packs', true);
@@ -2436,7 +2473,7 @@ async function showPackPlayerList(tier) {
 
             // 2. Check Limited Pull (using DB odds)
             if (Math.random() * 100 < pack.limited_odds) {
-                const { data: limitedPool } = await _supabase.from('soccer_stars').select('*').ilike('rarity', 'Limited');
+                const { data: limitedPool } = await _supabase.from('collection').select('*').ilike('rarity', 'Limited');
                 if (limitedPool && limitedPool.length > 0) {
                     let potential = limitedPool[Math.floor(Math.random() * limitedPool.length)];
                     const { data: countData } = await _supabase.rpc('count_limited_player', { pid: potential.id });
@@ -2453,11 +2490,11 @@ async function showPackPlayerList(tier) {
                     else if (promoRatingRoll < 90) { pMin = 87; pMax = 89; }
                     else                           { pMin = 90; pMax = 99; }
 
-                    let { data: promoPool } = await _supabase.from('soccer_stars').select('*')
+                    let { data: promoPool } = await _supabase.from('collection').select('*')
                         .ilike('rarity', '1st edition').gte('rating', pMin).lte('rating', pMax).eq('in_packs', true);
                     
                     if (!promoPool || promoPool.length === 0) {
-                        const fallbackPool = await _supabase.from('soccer_stars').select('*').ilike('rarity', '1st edition').eq('in_packs', true);
+                        const fallbackPool = await _supabase.from('collection').select('*').ilike('rarity', '1st edition').eq('in_packs', true);
                         promoPool = fallbackPool.data;
                     }
                     if (promoPool && promoPool.length > 0) {
@@ -2479,7 +2516,7 @@ async function showPackPlayerList(tier) {
                     }
                 }
                 
-                let { data } = await _supabase.from('soccer_stars')
+                let { data } = await _supabase.from('collection')
                     .select('*')
                     .gte('rating', rule.min)
                     .lte('rating', rule.max)
@@ -2488,7 +2525,7 @@ async function showPackPlayerList(tier) {
                     .eq('in_packs', true);
                     
                 if (!data || data.length === 0) { 
-                    let fallback = await _supabase.from('soccer_stars').select('*').limit(20); 
+                    let fallback = await _supabase.from('collection').select('*').limit(20); 
                     data = fallback.data; 
                 }
                 pulledPlayer = data[Math.floor(Math.random() * data.length)];
@@ -2609,7 +2646,7 @@ async function showPackPlayerList(tier) {
     
     // 1. Fetch all players marked as 'Limited'
     const { data: limitedPlayers, error } = await _supabase
-        .from('soccer_stars')
+        .from('collection')
         .select('id, name')
         .ilike('rarity', 'Limited');
 
