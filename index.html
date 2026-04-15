@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -15,7 +14,6 @@
         <div class="loading-text">LOADING...</div>
     </div>
 
-    <!-- ─── LOGIN ───────────────────────────────────────────────────────── -->
     <div id="view-login" class="active">
         <div class="pokeballs-bg">
             <div class="pokeball pb1"></div>
@@ -41,7 +39,6 @@
         </div>
     </div>
 
-    <!-- ─── NAV ──────────────────────────────────────────────────────────── -->
     <nav id="main-nav">
         <div class="nav-metric nav-left">DEX: <span id="nav-dex-value">0</span> 🪙</div>
         <div class="nav-center">
@@ -70,7 +67,6 @@
         <div class="nav-metric nav-right">COINS: <span class="bal-text">0</span> 🪙</div>
     </nav>
 
-    <!-- ─── CARD DETAIL MODAL ──────────────────────────────────────────── -->
     <div id="modal-overlay" onclick="closeModal()">
         <div class="modal-content" onclick="event.stopPropagation()">
             <div id="modal-card-render" style="display:flex;justify-content:center;margin-bottom:20px;"></div>
@@ -89,7 +85,6 @@
         </div>
     </div>
 
-    <!-- ─── HOME VIEW ──────────────────────────────────────────────────── -->
     <div id="view-home" class="view">
         <div class="marquee-container"><div id="marquee-track" class="marquee-track"></div></div>
         <div class="home-content">
@@ -99,7 +94,6 @@
         </div>
     </div>
 
-    <!-- ─── PACK STORE VIEW ────────────────────────────────────────────── -->
     <div id="view-slots" class="view" style="position:relative;">
         <div class="store-pulls-wrap"><div class="store-pulls-track" id="store-pulls-track"></div></div>
         <button id="catalog-toggle-btn" class="btn btn-outline" style="max-width:450px;margin:0 auto 15px;display:block;" onclick="openCatalog()">
@@ -116,7 +110,6 @@
                 <button id="sellBtn" class="btn btn-danger" style="width:48%;" onclick="sellPlayer()">SELL</button>
             </div>
 
-            <!-- Daily Collect -->
             <div id="daily-collect-banner" class="daily-collect-banner" style="display:none;">
                 <div class="daily-collect-info">
                     <div class="daily-collect-title">🎁 DAILY REWARD</div>
@@ -132,7 +125,6 @@
                 <button id="btn-promo" class="btn pack-btn pack-btn-promo" onclick="preparePack('promo')">1st Edition (15000 🪙)</button>
             </div>
 
-            <!-- Limited stock -->
             <div id="limited-stock-banner" style="margin-top:14px;display:none;
                  background:linear-gradient(135deg,#0a0a0a,#111);border:1px solid #bebebe44;
                  border-radius:12px;padding:12px 16px;text-align:center;">
@@ -141,7 +133,6 @@
             </div>
         </div>
 
-        <!-- Pokédex catalog filters -->
         <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;justify-content:center;margin-top:10px;">
             <button class="btn" style="background:#ffcb05;color:black;width:auto;padding:10px 20px;" onclick="loadCatalog('basic')">BASIC</button>
             <button class="btn" style="background:#c0c0c0;color:black;width:auto;padding:10px 20px;" onclick="loadCatalog('rare')">RARE</button>
@@ -152,7 +143,6 @@
         <div id="catalog-grid" style="display:none;flex-wrap:wrap;gap:15px;justify-content:center;padding-bottom:40px;"></div>
     </div>
 
-    <!-- ─── COLLECTION VIEW ────────────────────────────────────────────── -->
     <div id="view-team" class="view">
         <div class="view-header">
             <h2 class="view-title">MY COLLECTION</h2>
@@ -170,7 +160,6 @@
         <div class="squad-playtime-footer" id="squad-playtime-footer"></div>
     </div>
 
-    <!-- ─── DAYCARE / OFFICE VIEW ──────────────────────────────────────── -->
     <div id="view-office" class="view">
         <div class="view-header">
             <h2 class="view-title">🏠 DAYCARE CENTER</h2>
@@ -191,7 +180,6 @@
         <div id="office-roster"></div>
     </div>
 
-    <!-- ─── BATTLE ARENA VIEW ──────────────────────────────────────────── -->
     <div id="view-arena" class="view">
         <div class="view-header">
             <h2 class="view-title">⚔ BATTLE ARENA</h2>
@@ -250,7 +238,6 @@
         </div>
     </div>
 
-    <!-- ─── RANKINGS VIEW ─────────────────────────────────────────────── -->
     <div id="view-rank" class="view">
         <div class="view-header">
             <h2 class="view-title">🏆 TRAINER RANKINGS</h2>
@@ -260,7 +247,6 @@
         <div id="leaderboard-container"></div>
     </div>
 
-    <!-- ─── EXCHANGES VIEW ────────────────────────────────────────────── -->
     <div id="view-exchanges" class="view">
         <div class="view-header">
             <h2 class="view-title">🔁 EXCHANGES</h2>
@@ -270,7 +256,6 @@
         <div id="exchange-list"></div>
     </div>
 
-    <!-- ─── TRADE ACCEPT MODAL ────────────────────────────────────────── -->
     <div id="trade-accept-modal">
         <div class="trade-accept-box">
             <div class="trade-accept-title">INCOMING TRADE REQUEST</div>
@@ -293,7 +278,6 @@
         </div>
     </div>
 
-    <!-- ─── TRADE PICK MODAL ──────────────────────────────────────────── -->
     <div id="trade-pick-modal">
         <div class="trade-pick-box">
             <div class="trade-pick-title">CHOOSE A CARD TO OFFER</div>
@@ -303,7 +287,6 @@
         </div>
     </div>
 
-    <!-- ─── TRADE VIEW ────────────────────────────────────────────────── -->
     <div id="view-trade" class="view">
         <div class="view-header">
             <h2 class="view-title">🔄 TRADE BOARD</h2>
@@ -368,7 +351,6 @@
         </div>
     </div>
 
-    <!-- ─── LIMITED PULL OVERLAY ──────────────────────────────────────── -->
     <div id="limited-pull-overlay">
         <div class="lpa-shake-bg"></div>
         <div class="lpa-box">
@@ -381,7 +363,6 @@
         </div>
     </div>
 
-    <!-- ─── SQUAD VIEWER MODAL ────────────────────────────────────────── -->
     <div id="squad-viewer-modal" onclick="if(event.target===this)closeSquadViewer()">
         <div class="sv-box">
             <div class="sv-header">
