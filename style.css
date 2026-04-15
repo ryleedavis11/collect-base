@@ -696,27 +696,3 @@ nav button.active { color: var(--accent); border-bottom: 2px solid var(--accent)
     z-index: 10; 
     position: relative;
 }
-
-/* ─── CARD ZOOM SYSTEM ───────────────────────────────────────────── */
-#card-zoom-overlay {
-    display: none; 
-    position: fixed; 
-    inset: 0; 
-    background: rgba(0, 0, 0, 0.92); 
-    z-index: 10000; /* Stays above everything else */
-    align-items: center; 
-    justify-content: center; 
-    backdrop-filter: blur(12px); 
-    cursor: zoom-out;
-}
-
-#zoom-content {
-    transform: scale(1.8); /* Makes the card much bigger */
-    transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    pointer-events: none; /* Prevents clicking buttons inside the zoomed view */
-}
-
-/* On small screens, we scale a bit less so it fits the phone */
-@media (max-width: 500px) {
-    #zoom-content { transform: scale(1.3); }
-}

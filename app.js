@@ -725,11 +725,11 @@
     let clickAttr = '';
     if (clickable) {
         if (clickType === 'details') {
-            // If owned, pass ID. If catalog, pass the whole object.
+            // This now correctly passes either the ID or the full Card Object
             const target = p.instanceId ? `'${p.instanceId}'` : JSON.stringify(p).replace(/"/g, '&quot;');
             clickAttr = `onclick="showCardDetails(${target})"`;
         } else {
-            // Direct zoom trigger
+            // This is for the "Zoom" click inside the modal
             const cardData = JSON.stringify(p).replace(/"/g, '&quot;');
             clickAttr = `onclick="zoomCard(${cardData})"`;
         }
@@ -759,11 +759,8 @@
 </div>`;
 }
         // ─── CARD DETAILS MODAL ──────────────────────────────────────────────────
-        let _modalCurrentId = null;
-
         function showCardDetails(idOrObj) {
     let p;
-    // Determine if we were passed an ID (owned) or a card object (catalog)
     if (typeof idOrObj === 'string') {
         p = mySquad.find(player => player.instanceId == idOrObj);
     } else {
@@ -774,16 +771,38 @@
     _modalCurrentId = p.instanceId || null;
     const val = getCardValue(p);
     
-    // NEW: The card inside the modal now triggers the Zoom when clicked!
+    // Setting the card render to trigger the zoom when clicked
     document.getElementById('modal-card-render').innerHTML = generateCardHtml(p, true, 'zoom');
     
     document.getElementById('val-orig').innerText  = val.toLocaleString() + " 🪙";
-    document.getElementById('val-sell').innerText  = p.instanceId ? getSellValue(p).toLocaleString() + " 🪙" : 'NOT OWNED';
+    const sellVal = getSellValue(p);
+    document.getElementById('val-sell').innerText  = p.instanceId ? sellVal.toLocaleString() + " 🪙" : 'NOT OWNED';
     document.getElementById('val-date').innerText  = p.collectedDate || "Not in Collection";
 
-    // Toggle UI visibility based on if you own the card
-    const controls = ['modal-fav-btn', 'modal-showcase-btn', 'modal-sell-btn'];
-    controls.forEach(cid => document.getElementById(cid).style.display = p.instanceId ? 'block' : 'none');
+    const sellBtn = document.getElementById('modal-sell-btn');
+    const favBtn  = document.getElementById('modal-fav-btn');
+    const scBtn   = document.getElementById('modal-showcase-btn');
+
+    const isOwned = !!p.instanceId;
+    [sellBtn, favBtn, scBtn].forEach(btn => btn.style.display = isOwned ? 'block' : 'none');
+
+    if (isOwned) {
+        favBtn.innerText = p.isFavorite ? '⭐ FAVOURITED' : '☆ FAVOURITE';
+        scBtn.innerText = p.isShowcase ? '🏆 CURRENT SHOWCASE' : '🏆 SET AS SHOWCASE';
+
+        // QUICK SELL LOGIC
+        if (p.isFavorite) {
+            sellBtn.disabled = true;
+            sellBtn.innerText = '⭐ UNFAVOURITE TO SELL';
+        } else if (_lockedCardIds.has(p.instanceId)) {
+            sellBtn.disabled = true;
+            sellBtn.innerText = '🔒 LOCKED IN TRADE';
+        } else {
+            sellBtn.disabled = false;
+            sellBtn.innerText = `QUICK SELL (+${sellVal.toLocaleString()} 🪙)`;
+            sellBtn.onclick = () => { if(confirm(`Sell ${p.name}?`)) finalizeSale(p.instanceId); };
+        }
+    }
 
     document.getElementById('modal-overlay').style.display = 'flex';
 }
@@ -1390,11 +1409,12 @@ function zoomCard(p) {
         }
 
         async function getStandardCardForBattle() {
-            const { data, error } = await _supabase.from('collection').select('*')
-                .gte('rating', 4).lte('rating', 10).neq('rarity','Limited').neq('rarity','1st edition').limit(50);
-            if (error || !data || data.length === 0) return null;
-            return data[Math.floor(Math.random() * data.length)];
-        }
+    // Change 70 and 95 to 4 and 10
+    const { data, error } = await _supabase.from('collection').select('*')
+        .gte('rating', 4).lte('rating', 10).neq('rarity','Limited').neq('rarity','1st edition').limit(50);
+    if (error || !data || data.length === 0) return null;
+    return data[Math.floor(Math.random() * data.length)];
+}
 
         async function startArenaBattle() {
             const ENTRY = 500;
