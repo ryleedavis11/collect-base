@@ -95,7 +95,7 @@
     </div>
 
     <div id="view-slots" class="view" style="position:relative;">
-        <div class="store-pulls-wrap"><div class="store-pulls-track" id="store-pulls-track"></div></div>
+        <div class="store-pulls-bg"><div class="store-pulls-track" id="store-pulls-track"></div></div>
         <button id="catalog-toggle-btn" class="btn btn-outline" style="max-width:450px;margin:0 auto 15px;display:block;" onclick="openCatalog()">
             📖 VIEW POKÉDEX DATABASE
         </button>
@@ -133,14 +133,17 @@
             </div>
         </div>
 
-        <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;justify-content:center;margin-top:10px;">
-            <button class="btn" style="background:#ffcb05;color:black;width:auto;padding:10px 20px;" onclick="loadCatalog('basic')">BASIC</button>
-            <button class="btn" style="background:#c0c0c0;color:black;width:auto;padding:10px 20px;" onclick="loadCatalog('rare')">RARE</button>
-            <button class="btn" style="background:#3b82f6;width:auto;padding:10px 20px;" onclick="loadCatalog('ultra rare')">ULTRA RARE</button>
-            <button class="btn" style="background:#7c3aed;width:auto;padding:10px 20px;" onclick="loadCatalog('secret rare')">SECRET RARE</button>
-            <button class="btn" style="background:#ef4444;width:auto;padding:10px 20px;" onclick="loadCatalog('limited')">LIMITED</button>
+        <div id="catalog-grid" style="display:none;flex-direction:column;align-items:center;padding-bottom:40px;">
+            <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;justify-content:center;margin-top:10px;">
+                <button class="btn" style="background:#ffcb05;color:black;width:auto;padding:10px 20px;" onclick="loadCatalog('basic')">BASIC</button>
+                <button class="btn" style="background:#c0c0c0;color:black;width:auto;padding:10px 20px;" onclick="loadCatalog('rare')">RARE</button>
+                <button class="btn" style="background:#3b82f6;width:auto;padding:10px 20px;" onclick="loadCatalog('ultra rare')">ULTRA RARE</button>
+                <button class="btn" style="background:#7c3aed;width:auto;padding:10px 20px;" onclick="loadCatalog('secret rare')">SECRET RARE</button>
+                <button class="btn" style="background:#ef4444;width:auto;padding:10px 20px;" onclick="loadCatalog('limited')">LIMITED</button>
+                <button class="btn btn-outline" style="width:auto;padding:10px 20px;" onclick="closeCatalog()">← BACK TO STORE</button>
+            </div>
+            <div id="catalog-cards" style="display:flex;flex-wrap:wrap;gap:15px;justify-content:center;width:100%;"></div>
         </div>
-        <div id="catalog-grid" style="display:none;flex-wrap:wrap;gap:15px;justify-content:center;padding-bottom:40px;"></div>
     </div>
 
     <div id="view-team" class="view">

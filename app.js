@@ -1,10 +1,9 @@
-
 // ─── CONSTANTS ───────────────────────────────────────────────────────────
         const SELL_RATE = 0.65;
         const HOLO_MULTIPLIER = 3;
         const OFFICE_HOURLY_RATE = 0.01;
         const OFFICE_CAP_HOURS = 6;
-        const OFFICE_TOP_N = 10;
+        const OFFICE_TOP_N = 12;
         const PACK_IMAGES = {
             std:   'https://owffrsfbnpnhdgizamhk.supabase.co/storage/v1/object/public/player-images/Barcelona%20team%20-%20FootyRenders.png',
             pre:   'https://owffrsfbnpnhdgizamhk.supabase.co/storage/v1/object/public/player-images/Erling%20Braut%20Haaland%20-%20FootyRenders%20(1).png',
@@ -174,7 +173,6 @@
     const track = document.getElementById('store-pulls-track');
     if (!track) return;
     
-    // FIXED: Restored the query that checks actual user saves!
     const { data } = await _supabase.from('user_saves').select('username, squad').not('squad', 'is', null);
     if (!data) return;
 
@@ -189,23 +187,22 @@
     });
 
     todayPulls.sort((a, b) => getCardValue(b) - getCardValue(a));
-    const top10 = todayPulls.slice(0, 10);
+    const top20 = todayPulls.slice(0, 20);
 
-    if (top10.length === 0) {
-        // FIXED: The fallback now correctly searches for rating 9+ instead of 88+
-        const { data: fallback } = await _supabase.from('collection').select('*').gte('rating', 9).limit(10);
-        if (fallback) {
+    if (top20.length === 0) {
+        // Fallback: top rated cards from collection, get enough for a smooth scroll
+        const { data: fallback } = await _supabase.from('collection').select('*').gte('rating', 8).order('rating', { ascending: false }).limit(20);
+        if (fallback && fallback.length > 0) {
             track.innerHTML = [...fallback, ...fallback].map(p =>
-                `<div class="store-pull-item">${generateCardHtml(p, false)}<div class="store-pull-username">TODAY'S PULLS</div></div>`
+                `<div class="store-pull-item">${generateCardHtml(p, false)}<div class="store-pull-username">TODAY'S TOP CARDS</div></div>`
             ).join('');
         }
         return;
     }
 
-    const items = [...top10, ...top10].map(p =>
+    track.innerHTML = [...top20, ...top20].map(p =>
         `<div class="store-pull-item">${generateCardHtml(p, false)}<div class="store-pull-username">${p.pulledBy}</div></div>`
     ).join('');
-    track.innerHTML = items;
 }
 
         function updateWelcomeMsg() {
@@ -259,7 +256,7 @@
             await flushPlaytime();
             const cv = [...mySquad]
                 .sort((a,b) => getCardValue(b) - getCardValue(a))
-                .slice(0, 10)
+                .slice(0, OFFICE_TOP_N)
                 .reduce((sum, p) => sum + getCardValue(p), 0);
             await _supabase
                 .from('user_saves')
@@ -443,8 +440,11 @@
         // ─── MARQUEE ─────────────────────────────────────────────────────────────
         async function initMarquee() {
             const track = document.getElementById('marquee-track');
-            const { data } = await _supabase.from('collection').select('*').gte('rating', 8);
-            if (data) { track.innerHTML = [...data, ...data].map(p => generateCardHtml(p, false)).join(''); }
+            const { data } = await _supabase.from('collection').select('*').gte('rating', 5).order('rating', { ascending: false }).limit(40);
+            if (data && data.length > 0) {
+                // Duplicate the array for seamless infinite scroll
+                track.innerHTML = [...data, ...data].map(p => generateCardHtml(p, false)).join('');
+            }
         }
 
         // ─── PACK LOGIC ───────────────────────────────────────────────────────────
@@ -475,13 +475,23 @@
         }
 
         async function loadStorePrices() {
-            const { data: packs, error } = await _supabase.from('packs').select('tier, cost');
+            const { data: packs, error } = await _supabase.from('packs').select('tier, cost, in_store');
             if (error || !packs) return;
             const names = { std: 'Standard', pre: 'Premium', elt: 'Elite', promo: '1st Edition' };
+            // First hide all pack buttons, then only show the ones with in_store = true
+            ['std', 'pre', 'elt', 'promo'].forEach(tier => {
+                const btn = document.getElementById(`btn-${tier}`);
+                if (btn) btn.style.display = 'none';
+            });
             packs.forEach(pack => {
                 const btn = document.getElementById(`btn-${pack.tier}`);
                 if (btn && names[pack.tier]) {
-                    btn.innerText = `${names[pack.tier]} (${pack.cost.toLocaleString()} 🪙)`;
+                    if (pack.in_store === false) {
+                        btn.style.display = 'none';
+                    } else {
+                        btn.style.display = 'block';
+                        btn.innerText = `${names[pack.tier]} (${pack.cost.toLocaleString()} 🪙)`;
+                    }
                 }
             });
         }
@@ -962,10 +972,10 @@ function zoomCard(p) {
             }
             const { data, error } = await query;
             hideLoading();
-            const grid = document.getElementById('catalog-grid');
+            const grid = document.getElementById('catalog-cards');
             if (error) { grid.innerHTML = `<p style="color:red">Error: ${error.message}</p>`; return; }
             data.sort((a, b) => getCardValue(b) - getCardValue(a));
-           grid.innerHTML = data.map(p => generateCardHtml(p, true, 'details')).join('');
+            grid.innerHTML = data.map(p => generateCardHtml(p, true, 'details')).join('');
         }
 
         // ─── MULTI-SELECT ─────────────────────────────────────────────────────────
@@ -1650,10 +1660,3 @@ function zoomCard(p) {
 
         // ─── INIT ─────────────────────────────────────────────────────────────────
         window.addEventListener('load', checkExistingSession);
-
-        function zoomCard(p) {
-    const overlay = document.getElementById('card-zoom-overlay');
-    const content = document.getElementById('zoom-content');
-    content.innerHTML = generateCardHtml(p, false); // Render the card without click events
-    overlay.style.display = 'flex';
-}

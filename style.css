@@ -233,8 +233,6 @@ nav button.active { color: var(--accent); border-bottom: 2px solid var(--accent)
 .default-msg { font-family: var(--font-display); font-size: 2rem; color: var(--accent); letter-spacing: 3px; }
 
 /* Store top pulls */
-.store-pulls-wrap  { width:100%; overflow:hidden; margin-bottom:20px; opacity:0.85; }
-.store-pulls-track { display:flex; gap:16px; width:max-content; animation:scroll 40s linear infinite; }
 .store-pull-item   { display:flex; flex-direction:column; align-items:center; flex-shrink:0; }
 .store-pull-username { font-size:0.6rem; color:var(--muted); letter-spacing:1px; margin-top:4px; font-weight:900; text-align:center; }
 
@@ -444,7 +442,7 @@ nav button.active { color: var(--accent); border-bottom: 2px solid var(--accent)
 .office-collect-btn.capped { background:#2a0808; color:var(--danger); border:1px solid var(--danger); cursor:default; }
 @keyframes collectPulse { 0%,100%{box-shadow:0 0 24px rgba(255,215,0,0.4);}50%{box-shadow:0 0 44px rgba(255,215,0,0.7);} }
 .office-roster-title { font-size:0.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:2px; margin-bottom:16px; text-align:center; }
-.office-card-grid { display:grid; grid-template-columns:repeat(auto-fill,200px); gap:16px 40px; padding:10px 40px 40px; justify-content:center; }
+.office-card-grid { display:grid; grid-template-columns:repeat(4, 200px); gap:16px 24px; padding:10px 20px 40px; justify-content:center; }
 .office-card-wrap { display:flex; flex-direction:column; align-items:center; position:relative; }
 .office-rank-badge { position:absolute; top:16px; left:16px; z-index:40; background:rgba(0,0,0,0.75); border:1px solid rgba(255,255,255,0.12); border-radius:6px; padding:2px 7px; font-size:0.62rem; font-weight:900; color:#888; letter-spacing:1px; pointer-events:none; }
 .office-rank-badge.top3 { color:var(--gold); border-color:rgba(255,215,0,0.4); }
@@ -719,4 +717,39 @@ nav button.active { color: var(--accent); border-bottom: 2px solid var(--accent)
     transform: scale(1.5); /* Adjust this number to make the zoomed card larger or smaller */
     transition: transform 0.2s ease-in-out;
     pointer-events: none; /* Allows the user's click to pass through to the background to close it */
+}
+/* ─── STORE PULLS BACKGROUND MARQUEE ────────────────────────────────── */
+.store-pulls-bg {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 100%;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.13;
+    white-space: nowrap;
+    display: flex;
+    align-items: flex-start;
+    padding-top: 20px;
+}
+.store-pulls-bg .store-pulls-track {
+    display: flex;
+    gap: 16px;
+    width: max-content;
+    animation: scroll 55s linear infinite;
+}
+/* Ensure slot-container and catalog sit above the background */
+#slot-container,
+#catalog-toggle-btn,
+#catalog-grid {
+    position: relative;
+    z-index: 10;
+}
+
+/* ─── OFFICE CARD GRID RESPONSIVE ────────────────────────────────────── */
+@media (max-width: 900px) {
+    .office-card-grid { grid-template-columns: repeat(2, 200px); }
+}
+@media (max-width: 480px) {
+    .office-card-grid { grid-template-columns: repeat(1, 200px); }
 }
