@@ -1502,7 +1502,7 @@
             const grid = document.getElementById('trade-pick-grid');
             if (eligible.length === 0) { showToast('No eligible cards to offer.'); return; }
             grid.innerHTML = eligible.sort((a,b)=>getCardValue(b)-getCardValue(a)).map(p =>
-                '<div class="pick-card-wrap" onclick="selectPickCard(\'" + p.instanceId + "\',this)">' + generateCardHtml(p,false) + '</div>'
+                '<div class="pick-card-wrap" onclick="selectPickCard(\'' + p.instanceId + '\',this)">' + generateCardHtml(p,false) + '</div>'
             ).join('');
             const btn = document.getElementById('trade-pick-confirm');
             btn.disabled = true; btn.innerText = 'SELECT A CARD FIRST';
