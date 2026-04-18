@@ -11,6 +11,20 @@
             promo: 'https://owffrsfbnpnhdgizamhk.supabase.co/storage/v1/object/public/player-images/imagefor1sted-removebg-preview.png'
         };
 
+        // ─── TYPE ADVANTAGE TABLE ─────────────────────────────────────────────────
+        const TYPE_ADVANTAGES = {
+            fire:     'grass',
+            water:    'fire',
+            grass:    'water',
+            psychic:  'fighting',
+            fighting: 'dark',
+            dark:     'psychic',
+            electric: 'water',
+            ice:      'dragon',
+            dragon:   'normal',
+        };
+        const TYPE_ADV_MULTIPLIER = 1.20; // +20% effective value
+
         // ─── STATE ───────────────────────────────────────────────────────────────
         let balance = 1000;
         let holoConfig = { min_rating: 4, chance: 0.02 };
@@ -25,6 +39,7 @@
         let _lastSaveCheckDate = null;
         let _myPendingTradeIds = [];
         let _activeTypeFilter = 'all';
+        let _stdPackData = null; // cached standard pack data for arena
 
         // ─── TOAST ───────────────────────────────────────────────────────────────
         function showToast(msg, duration = 4000) {
@@ -45,6 +60,42 @@
         function showLoading() { document.getElementById('loading-overlay').classList.add('active'); }
         function hideLoading() { document.getElementById('loading-overlay').classList.remove('active'); }
 
+        // ─── LANDING PAGE ─────────────────────────────────────────────────────────
+        function showAuthPanel(loginMode) {
+            isLoginMode = loginMode;
+            document.getElementById('view-landing').style.display = 'none';
+            document.getElementById('view-login').classList.add('active');
+            // sync UI state
+            const subtitle = document.getElementById('auth-subtitle');
+            const btn = document.getElementById('auth-submit-btn');
+            const toggle = document.querySelector('.auth-toggle');
+            const usernameField = document.getElementById('field-username');
+            clearAuthMessages();
+            if (loginMode) {
+                subtitle.innerText = 'SIGN IN'; btn.innerText = 'SIGN IN';
+                toggle.innerText = "Don't have an account? Register";
+                usernameField.style.display = 'none';
+            } else {
+                subtitle.innerText = 'CREATE ACCOUNT'; btn.innerText = 'CREATE ACCOUNT';
+                toggle.innerText = "Already have an account? Sign In";
+                usernameField.style.display = 'block';
+            }
+        }
+
+        function hideLanding() {
+            document.getElementById('view-login').classList.remove('active');
+            document.getElementById('view-landing').style.display = '';
+        }
+
+        // Load a few showcase cards on the landing page
+        async function initLandingShowcase() {
+            const { data } = await _supabase.from('collection').select('*').gte('rating', 8).limit(3);
+            const showcase = document.getElementById('landing-card-showcase');
+            if (data && data.length > 0) {
+                showcase.innerHTML = data.map(p => `<div class="landing-card-item">${generateCardHtml(p, false)}</div>`).join('');
+            }
+        }
+
         // ─── AUTH MODE TOGGLE ────────────────────────────────────────────────────
         function toggleAuthMode() {
             isLoginMode = !isLoginMode;
@@ -54,13 +105,11 @@
             const usernameField = document.getElementById('field-username');
             clearAuthMessages();
             if (isLoginMode) {
-                subtitle.innerText = 'SIGN IN';
-                btn.innerText = 'SIGN IN';
+                subtitle.innerText = 'SIGN IN'; btn.innerText = 'SIGN IN';
                 toggle.innerText = "Don't have an account? Register";
                 usernameField.style.display = 'none';
             } else {
-                subtitle.innerText = 'CREATE ACCOUNT';
-                btn.innerText = 'CREATE ACCOUNT';
+                subtitle.innerText = 'CREATE ACCOUNT'; btn.innerText = 'CREATE ACCOUNT';
                 toggle.innerText = "Already have an account? Sign In";
                 usernameField.style.display = 'block';
             }
@@ -109,11 +158,8 @@
                     }, { onConflict: 'user_id' })
                     .select();
                 if (dbError) { hideLoading(); setAuthError("Database error: " + dbError.message); return; }
-                balance = 5000;
-                mySquad = [];
-                lastCollected = new Date().toISOString();
-                hideLoading();
-                enterGame();
+                balance = 5000; mySquad = []; lastCollected = new Date().toISOString();
+                hideLoading(); enterGame();
             }
         }
 
@@ -121,14 +167,14 @@
         async function handleLogout() {
             if (!confirm('Log out?')) return;
             await saveGame();
-            stopOfficeTicker();
-            stopTradePoll();
+            stopOfficeTicker(); stopTradePoll();
             await _supabase.auth.signOut();
             currentUser = null; balance = 5000; mySquad = []; lastCollected = null;
             document.getElementById('main-nav').style.display = 'none';
             document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.getElementById('view-login').classList.add('active');
-            isLoginMode = true; toggleAuthMode();
+            document.getElementById('view-landing').style.display = '';
+            document.getElementById('view-landing').classList.add('active');
+            document.getElementById('view-login').classList.remove('active');
             document.getElementById('email').value = '';
             document.getElementById('password').value = '';
             document.getElementById('username').value = '';
@@ -137,6 +183,8 @@
         // ─── SESSION CHECK ───────────────────────────────────────────────────────
         async function checkExistingSession() {
             showLoading();
+            // Always init landing showcase cards in background
+            initLandingShowcase();
             const { data: { session } } = await _supabase.auth.getSession();
             if (session) { currentUser = session.user; await loadCloudSave(); enterGame(); }
             else { hideLoading(); }
@@ -145,11 +193,10 @@
         // ─── ENTER GAME ──────────────────────────────────────────────────────────
         function enterGame() {
             hideLoading();
+            document.getElementById('view-landing').style.display = 'none';
             document.getElementById('view-login').classList.remove('active');
             document.getElementById('main-nav').style.display = 'flex';
-
             setupPresence();
-
             showView('home');
             updateWelcomeMsg();
             initMarquee();
@@ -167,43 +214,45 @@
             loadLimitedStock();
             loadExchangeState();
             startPlaytimeTracking();
+            renderDailyChallenges();
+            prefetchStdPack();
+        }
+
+        // ─── PREFETCH STANDARD PACK FOR ARENA ────────────────────────────────────
+        async function prefetchStdPack() {
+            const { data } = await _supabase.from('packs').select('*').eq('tier', 'std').single();
+            if (data) _stdPackData = data;
         }
 
         async function loadTopPullsToday() {
-    const track = document.getElementById('store-pulls-track');
-    if (!track) return;
-    
-    const { data } = await _supabase.from('user_saves').select('username, squad').not('squad', 'is', null);
-    if (!data) return;
-
-    const todayStr = new Date().toLocaleDateString();
-    let todayPulls = [];
-    data.forEach(user => {
-        (user.squad || []).forEach(card => {
-            if (card.collectedDate === todayStr) {
-                todayPulls.push({ ...card, pulledBy: user.username || 'ANONYMOUS' });
+            const track = document.getElementById('store-pulls-track');
+            if (!track) return;
+            const { data } = await _supabase.from('user_saves').select('username, squad').not('squad', 'is', null);
+            if (!data) return;
+            const todayStr = new Date().toLocaleDateString();
+            let todayPulls = [];
+            data.forEach(user => {
+                (user.squad || []).forEach(card => {
+                    if (card.collectedDate === todayStr) {
+                        todayPulls.push({ ...card, pulledBy: user.username || 'ANONYMOUS' });
+                    }
+                });
+            });
+            todayPulls.sort((a, b) => getCardValue(b) - getCardValue(a));
+            const top20 = todayPulls.slice(0, 20);
+            if (top20.length === 0) {
+                const { data: fallback } = await _supabase.from('collection').select('*').gte('rating', 8).order('rating', { ascending: false }).limit(20);
+                if (fallback && fallback.length > 0) {
+                    track.innerHTML = [...fallback, ...fallback].map(p =>
+                        `<div class="store-pull-item">${generateCardHtml(p, false)}<div class="store-pull-username">TODAY'S TOP CARDS</div></div>`
+                    ).join('');
+                }
+                return;
             }
-        });
-    });
-
-    todayPulls.sort((a, b) => getCardValue(b) - getCardValue(a));
-    const top20 = todayPulls.slice(0, 20);
-
-    if (top20.length === 0) {
-        // Fallback: top rated cards from collection, get enough for a smooth scroll
-        const { data: fallback } = await _supabase.from('collection').select('*').gte('rating', 8).order('rating', { ascending: false }).limit(20);
-        if (fallback && fallback.length > 0) {
-            track.innerHTML = [...fallback, ...fallback].map(p =>
-                `<div class="store-pull-item">${generateCardHtml(p, false)}<div class="store-pull-username">TODAY'S TOP CARDS</div></div>`
+            track.innerHTML = [...top20, ...top20].map(p =>
+                `<div class="store-pull-item">${generateCardHtml(p, false)}<div class="store-pull-username">${p.pulledBy}</div></div>`
             ).join('');
         }
-        return;
-    }
-
-    track.innerHTML = [...top20, ...top20].map(p =>
-        `<div class="store-pull-item">${generateCardHtml(p, false)}<div class="store-pull-username">${p.pulledBy}</div></div>`
-    ).join('');
-}
 
         function updateWelcomeMsg() {
             const username = currentUser?.user_metadata?.username || currentUser?.email || 'TRAINER';
@@ -215,16 +264,14 @@
             if (!currentUser) return;
             const { data, error } = await _supabase
                 .from('user_saves')
-                .select('balance, squad, last_collected, completed_exchanges, hours_played, last_daily_collect')
+                .select('balance, squad, last_collected, completed_exchanges, hours_played, last_daily_collect, daily_challenges')
                 .eq('user_id', currentUser.id)
                 .single();
-
             if (error) {
                 console.error("CRITICAL LOAD ERROR:", error.message);
                 showToast('🚨 Database Error! Check console. DO NOT SAVE.', 10000);
                 return;
             }
-
             if (data) {
                 balance = data.balance ?? 5000;
                 mySquad = data.squad || [];
@@ -232,11 +279,9 @@
                 _totalHoursPlayed  = data.hours_played || 0;
                 lastCollected = data.last_collected || new Date().toISOString();
                 _lastSaveCheckDate = data.updated_at;
+                _dailyChallenges = data.daily_challenges || null;
                 updateLockedCards();
-
-                const offlineRoster = [...mySquad]
-                    .sort((a, b) => getCardValue(b) - getCardValue(a))
-                    .slice(0, OFFICE_TOP_N);
+                const offlineRoster = [...mySquad].sort((a, b) => getCardValue(b) - getCardValue(a)).slice(0, OFFICE_TOP_N);
                 const offlineHourlyRate = offlineRoster.reduce((sum, p) => sum + getCardValue(p) * OFFICE_HOURLY_RATE, 0);
                 const offlineEarned = Math.floor(offlineHourlyRate * getElapsedHours());
                 if (offlineEarned > 0) {
@@ -244,33 +289,26 @@
                     lastCollected = new Date().toISOString();
                     window._offlineEarnedNotif = offlineEarned;
                 }
-
-                updateUI();
-                renderSquad();
-                saveGame();
+                updateUI(); renderSquad(); saveGame();
             }
         }
 
         async function saveGame() {
             if (!currentUser) return;
             await flushPlaytime();
-            const cv = [...mySquad]
-                .sort((a,b) => getCardValue(b) - getCardValue(a))
-                .slice(0, OFFICE_TOP_N)
-                .reduce((sum, p) => sum + getCardValue(p), 0);
-            await _supabase
-                .from('user_saves')
-                .upsert({
-                    user_id: currentUser.id,
-                    email: currentUser.email,
-                    username: currentUser.user_metadata?.username || currentUser.email.split('@')[0],
-                    balance,
-                    squad: mySquad,
-                    club_value: cv,
-                    last_collected: lastCollected,
-                    completed_exchanges: completedExchanges,
-                    updated_at: new Date().toISOString()
-                }, { onConflict: 'user_id' });
+            const cv = [...mySquad].sort((a,b) => getCardValue(b) - getCardValue(a)).slice(0, OFFICE_TOP_N).reduce((sum, p) => sum + getCardValue(p), 0);
+            await _supabase.from('user_saves').upsert({
+                user_id: currentUser.id,
+                email: currentUser.email,
+                username: currentUser.user_metadata?.username || currentUser.email.split('@')[0],
+                balance,
+                squad: mySquad,
+                club_value: cv,
+                last_collected: lastCollected,
+                completed_exchanges: completedExchanges,
+                daily_challenges: _dailyChallenges,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'user_id' });
         }
 
         // ─── LOCK CARDS IN ACTIVE TRADES ─────────────────────────────────────────
@@ -305,35 +343,27 @@
         function getOfficeRoster() {
             return [...mySquad].sort((a, b) => getCardValue(b) - getCardValue(a)).slice(0, OFFICE_TOP_N);
         }
-
         function getOfficeHourlyTotal() {
             return getOfficeRoster().reduce((sum, p) => sum + getCardValue(p) * OFFICE_HOURLY_RATE, 0);
         }
-
         function getElapsedHours() {
             if (!lastCollected) return 0;
             const diffMs = Date.now() - new Date(lastCollected).getTime();
             return Math.min(diffMs / (1000 * 60 * 60), OFFICE_CAP_HOURS);
         }
-
         function isOfficeCapped() {
             if (!lastCollected) return false;
             const diffMs = Date.now() - new Date(lastCollected).getTime();
             return diffMs >= OFFICE_CAP_HOURS * 60 * 60 * 1000;
         }
-
-        function getPendingEarnings() {
-            return Math.floor(getOfficeHourlyTotal() * getElapsedHours());
-        }
+        function getPendingEarnings() { return Math.floor(getOfficeHourlyTotal() * getElapsedHours()); }
 
         async function collectOfficeEarnings() {
             const pending = getPendingEarnings();
             if (pending <= 0) return;
             balance += pending;
             lastCollected = new Date().toISOString();
-            updateUI();
-            renderOfficeView();
-            await saveGame();
+            updateUI(); renderOfficeView(); await saveGame();
             showToast(`💰 Collected +${pending.toLocaleString()} 🪙 from the Daycare!`);
             const panel = document.getElementById('office-panel');
             if (panel) { panel.classList.add('collect-flash'); setTimeout(() => panel.classList.remove('collect-flash'), 600); }
@@ -344,27 +374,20 @@
             const capped  = isOfficeCapped();
             const hourly  = getOfficeHourlyTotal();
             const hours   = getElapsedHours();
-
             const pendingEl = document.getElementById('office-pending-display');
             const rateEl    = document.getElementById('office-rate-display');
             const barEl     = document.getElementById('office-timer-bar');
             const lblEl     = document.getElementById('office-timer-label');
             if (!pendingEl) return;
-
             pendingEl.innerText = pending.toLocaleString() + ' 🪙';
             pendingEl.style.color = capped ? '#ef4444' : '#ffd700';
             rateEl.innerText = hourly.toLocaleString(undefined, {maximumFractionDigits:1}) + ' 🪙 / hour';
-
             const pct = Math.min((hours / OFFICE_CAP_HOURS) * 100, 100);
             barEl.style.width = pct + '%';
-            barEl.style.background = capped
-                ? 'linear-gradient(90deg,#ef4444,#ff6b6b)'
-                : 'linear-gradient(90deg,#ffcb05,#ffd700)';
-
+            barEl.style.background = capped ? 'linear-gradient(90deg,#ef4444,#ff6b6b)' : 'linear-gradient(90deg,#ffcb05,#ffd700)';
             const totalMins = Math.floor(hours * 60);
             const hh = Math.floor(totalMins / 60), mm = totalMins % 60;
             lblEl.innerText = capped ? '⚠ CAPPED — COLLECT NOW' : `${hh}h ${mm}m accumulated`;
-
             const btn = document.getElementById('office-collect-btn');
             if (pending > 0) {
                 btn.className = capped ? 'office-collect-btn capped' : 'office-collect-btn ready';
@@ -373,7 +396,6 @@
                 btn.className = 'office-collect-btn empty';
                 btn.innerText = 'COLLECT';
             }
-
             const badge = document.getElementById('office-badge');
             badge.style.display = pending > 0 ? 'flex' : 'none';
         }
@@ -382,45 +404,21 @@
             const roster = getOfficeRoster();
             const container = document.getElementById('office-roster');
             const capped = isOfficeCapped();
-
             if (roster.length === 0) {
-                container.innerHTML = `
-                    <div class="office-empty-state">
-                        <div class="big-icon">🏠</div>
-                        <p>KEEP POKÉMON CARDS TO START EARNING</p>
-                    </div>`;
+                container.innerHTML = `<div class="office-empty-state"><div class="big-icon">🏠</div><p>KEEP POKÉMON CARDS TO START EARNING</p></div>`;
                 return;
             }
-
             const hourlyTotal = getOfficeHourlyTotal();
-            let html = `
-                <div class="office-roster-title">
-                    TOP ${roster.length} EARNERS &nbsp;·&nbsp; ${hourlyTotal.toLocaleString(undefined, {maximumFractionDigits:0})} 🪙 / HOUR
-                    ${capped ? '&nbsp;&nbsp;<span style="color:#ef4444">⚠ INCOME PAUSED — COLLECT NOW</span>' : ''}
-                </div>
-                <div class="office-card-grid">`;
-
+            let html = `<div class="office-roster-title">TOP ${roster.length} EARNERS &nbsp;·&nbsp; ${hourlyTotal.toLocaleString(undefined, {maximumFractionDigits:0})} 🪙 / HOUR ${capped ? '&nbsp;&nbsp;<span style="color:#ef4444">⚠ INCOME PAUSED — COLLECT NOW</span>' : ''}</div><div class="office-card-grid">`;
             roster.forEach((p, i) => {
                 const hourly = getCardValue(p) * OFFICE_HOURLY_RATE;
-                html += `
-                    <div class="office-card-wrap ${capped ? 'capped' : ''}">
-                        <div class="office-rank-badge ${i < 3 ? 'top3' : ''}">#${i + 1}</div>
-                        ${generateCardHtml(p, false)}
-                        <div class="office-earn-tag ${capped ? 'capped' : ''}">
-                            <div class="office-earn-amount">${capped ? '⏸' : '+'} ${hourly.toLocaleString(undefined, {maximumFractionDigits:1})} 🪙</div>
-                            <div class="office-earn-label">${capped ? 'PAUSED' : 'PER HOUR'}</div>
-                        </div>
-                    </div>`;
+                html += `<div class="office-card-wrap ${capped ? 'capped' : ''}"><div class="office-rank-badge ${i < 3 ? 'top3' : ''}">#${i + 1}</div>${generateCardHtml(p, false)}<div class="office-earn-tag ${capped ? 'capped' : ''}"><div class="office-earn-amount">${capped ? '⏸' : '+'} ${hourly.toLocaleString(undefined, {maximumFractionDigits:1})} 🪙</div><div class="office-earn-label">${capped ? 'PAUSED' : 'PER HOUR'}</div></div></div>`;
             });
-
             html += `</div>`;
             container.innerHTML = html;
         }
 
-        function renderOfficeView() {
-            updateOfficePanelUI();
-            renderOfficeRoster();
-        }
+        function renderOfficeView() { updateOfficePanelUI(); renderOfficeRoster(); }
 
         function startOfficeTicker() {
             stopOfficeTicker();
@@ -432,17 +430,13 @@
                 if (officeView.classList.contains('active')) updateOfficePanelUI();
             }, 5000);
         }
-
-        function stopOfficeTicker() {
-            if (officeTickInterval) { clearInterval(officeTickInterval); officeTickInterval = null; }
-        }
+        function stopOfficeTicker() { if (officeTickInterval) { clearInterval(officeTickInterval); officeTickInterval = null; } }
 
         // ─── MARQUEE ─────────────────────────────────────────────────────────────
         async function initMarquee() {
             const track = document.getElementById('marquee-track');
             const { data } = await _supabase.from('collection').select('*').gte('rating', 5).order('rating', { ascending: false }).limit(40);
             if (data && data.length > 0) {
-                // Duplicate the array for seamless infinite scroll
                 track.innerHTML = [...data, ...data].map(p => generateCardHtml(p, false)).join('');
             }
         }
@@ -460,9 +454,7 @@
             visual.innerHTML = `
                 <div class="pack-container" onclick="openPack()">
                     <div class="info-btn" onclick="event.stopPropagation(); showPackWeights('${tier}');"
-                        style="position:absolute;top:-10px;right:-10px;z-index:20;cursor:pointer;background:#111;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;border:2px solid #ffcb05;color:#ffcb05;font-weight:bold;box-shadow:0 0 10px rgba(255,203,5,0.3);">
-                        i
-                    </div>
+                        style="position:absolute;top:-10px;right:-10px;z-index:20;cursor:pointer;background:#111;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.8rem;border:2px solid #ffcb05;color:#ffcb05;font-weight:bold;box-shadow:0 0 10px rgba(255,203,5,0.3);">i</div>
                     <div class="foil-pack">
                         ${specialLayer}
                         <div class="foil-shine"></div>
@@ -478,7 +470,6 @@
             const { data: packs, error } = await _supabase.from('packs').select('tier, cost, in_store');
             if (error || !packs) return;
             const names = { std: 'Standard', pre: 'Premium', elt: 'Elite', promo: '1st Edition' };
-            // First hide all pack buttons, then only show the ones with in_store = true
             ['std', 'pre', 'elt', 'promo'].forEach(tier => {
                 const btn = document.getElementById(`btn-${tier}`);
                 if (btn) btn.style.display = 'none';
@@ -498,12 +489,9 @@
 
         async function openPack() {
             showLoading();
-            const { data: pack, error } = await _supabase
-                .from('packs').select('*').eq('tier', activeTier).single();
-
+            const { data: pack, error } = await _supabase.from('packs').select('*').eq('tier', activeTier).single();
             if (error || !pack) { hideLoading(); showToast("Error loading pack data from server."); return; }
             if (balance < pack.cost) { hideLoading(); showToast("Not enough coins!"); return; }
-
             balance -= pack.cost;
             const roll = Math.random() * 100;
             let pulledPlayer = null;
@@ -521,7 +509,6 @@
                 }
             }
 
-            // FIX 1: Pointing to your 'promo_odds' database column
             if (!pulledPlayer && pack.promo_odds > 0 && roll < pack.promo_odds) {
                 const { data: promoPool } = await _supabase.from('collection').select('*').ilike('rarity', '1st edition');
                 if (promoPool && promoPool.length > 0) {
@@ -530,16 +517,8 @@
             }
 
             if (!pulledPlayer) {
-                // FIX 2: Pointing to your 'odds_config' database column
                 const rules = pack.odds_config || [];
-                
-                // SAFETY NET: Stops the infinite loading if odds are missing
-                if (rules.length === 0) {
-                    hideLoading(); 
-                    showToast("Pack odds missing! Check Supabase."); 
-                    return;
-                }
-
+                if (rules.length === 0) { hideLoading(); showToast("Pack odds missing! Check Supabase."); return; }
                 let cumulative = 0;
                 let rule = rules[rules.length - 1];
                 for (const r of rules) {
@@ -549,36 +528,28 @@
                 const { data } = await _supabase.from('collection').select('*')
                     .gte('rating', rule.min).lte('rating', rule.max)
                     .neq('rarity', 'Limited').neq('rarity', '1st edition').eq('in_packs', true);
-                
                 let poolData = (data && data.length > 0) ? data : (await _supabase.from('collection').select('*').limit(20)).data;
                 pulledPlayer = poolData[Math.floor(Math.random() * poolData.length)];
             }
 
-            // SAFETY NET 2: If the database is completely empty
-            if (!pulledPlayer) {
-                hideLoading();
-                showToast("No cards found in the database to pull!");
-                return;
-            }
+            if (!pulledPlayer) { hideLoading(); showToast("No cards found in the database to pull!"); return; }
 
             if (pulledPlayer.rating >= holoConfig.min_rating && Math.random() < holoConfig.chance) {
                 pulledPlayer.isSuperHolo = true;
             }
 
-            currentPull = {
-                ...pulledPlayer,
-                instanceId: 'inst_' + Date.now(),
-                collectedDate: new Date().toLocaleDateString()
-            };
-
+            currentPull = { ...pulledPlayer, instanceId: 'inst_' + Date.now(), collectedDate: new Date().toLocaleDateString() };
             hideLoading();
+
+            // Check daily challenge progress for pack opens
+            tickChallenge('open_packs', 1);
+
             await animatePack(currentPull);
         }
 
         async function animatePack(pulledPlayer) {
             const packVisual = document.getElementById('pack-visual').querySelector('.pack-container');
             const rarity = (pulledPlayer.rarity || '').toLowerCase();
-
             if (rarity === 'limited') {
                 packVisual.classList.add('suspense-shake-limited');
                 await new Promise(r => setTimeout(r, 1800));
@@ -595,13 +566,8 @@
                 packVisual.classList.add('suspense-shake');
                 await new Promise(r => setTimeout(r, 500));
             }
-
             packVisual.classList.remove('suspense-shake', 'suspense-shake-promo', 'suspense-shake-limited');
-
-            if (rarity === 'limited' && pulledPlayer.isLimited) {
-                broadcastLimitedPull(pulledPlayer);
-            }
-
+            if (rarity === 'limited' && pulledPlayer.isLimited) broadcastLimitedPull(pulledPlayer);
             const val = getCardValue(currentPull);
             const reveal = document.getElementById('pack-reveal');
             reveal.innerHTML = generateCardHtml(currentPull, false);
@@ -614,8 +580,7 @@
         }
 
         async function loadGameSettings() {
-            const { data, error } = await _supabase
-                .from('game_settings').select('setting_value').eq('setting_key', 'holo_rules').single();
+            const { data, error } = await _supabase.from('game_settings').select('setting_value').eq('setting_key', 'holo_rules').single();
             if (data && !error) { holoConfig = data.setting_value; }
         }
 
@@ -628,18 +593,10 @@
             const list   = document.getElementById('leaderboard-container');
             podium.innerHTML = '<p style="color:#555566">FETCHING DATA...</p>';
             list.innerHTML   = '';
-
-            const { data, error } = await _supabase
-                .from('user_saves').select('username, club_value, squad')
-                .order('club_value', { ascending: false }).limit(50);
+            const { data, error } = await _supabase.from('user_saves').select('username, club_value, squad').order('club_value', { ascending: false }).limit(50);
             if (error) return;
-
-            const filtered = (data || []).filter(u =>
-                !BANNED_USERNAMES.includes((u.username || '').toLowerCase())
-            ).slice(0, 25);
-
+            const filtered = (data || []).filter(u => !BANNED_USERNAMES.includes((u.username || '').toLowerCase())).slice(0, 25);
             _lbData = filtered;
-
             let podiumHtml = '';
             for (let i = 0; i < Math.min(3, filtered.length); i++) {
                 const user = filtered[i];
@@ -647,35 +604,15 @@
                 if (user.squad && user.squad.length > 0) {
                     const showcaseCard = user.squad.find(c => c.isShowcase);
                     const favCard      = user.squad.find(c => c.isFavorite);
-                    starCard = showcaseCard || favCard || user.squad.reduce((prev, curr) =>
-                        getCardValue(curr) > getCardValue(prev) ? curr : prev);
+                    starCard = showcaseCard || favCard || user.squad.reduce((prev, curr) => getCardValue(curr) > getCardValue(prev) ? curr : prev);
                 }
-                podiumHtml += `
-                    <div class="podium-slot slot-${i + 1} clickable" onclick="openSquadViewer(${i})"
-                         title="View ${user.username || 'ANONYMOUS'}'s collection">
-                        <div class="podium-user">#${i + 1} ${user.username || 'ANONYMOUS'}</div>
-                        <div class="podium-val">${user.club_value.toLocaleString()} 🪙</div>
-                        <div class="podium-star-label"></div>
-                        <div class="podium-card-mini">
-                            ${user.squad && user.squad.length > 0
-                                ? generateCardHtml(starCard, false)
-                                : '<div style="height:100px;color:#333">EMPTY</div>'}
-                        </div>
-                    </div>`;
+                podiumHtml += `<div class="podium-slot slot-${i + 1} clickable" onclick="openSquadViewer(${i})" title="View ${user.username || 'ANONYMOUS'}'s collection"><div class="podium-user">#${i + 1} ${user.username || 'ANONYMOUS'}</div><div class="podium-val">${user.club_value.toLocaleString()} 🪙</div><div class="podium-star-label"></div><div class="podium-card-mini">${user.squad && user.squad.length > 0 ? generateCardHtml(starCard, false) : '<div style="height:100px;color:#333">EMPTY</div>'}</div></div>`;
             }
             podium.innerHTML = podiumHtml;
-
-            let tableHtml = `<table class="rank-table">
-                <tr><th>Rank</th><th>Trainer</th><th>DEX Value</th><th></th></tr>`;
+            let tableHtml = `<table class="rank-table"><tr><th>Rank</th><th>Trainer</th><th>DEX Value</th><th></th></tr>`;
             for (let i = 3; i < filtered.length; i++) {
                 const u = filtered[i];
-                tableHtml += `
-                    <tr class="rank-row-clickable" onclick="openSquadViewer(${i})">
-                        <td>#${i + 1}</td>
-                        <td>${u.username || 'ANONYMOUS'}</td>
-                        <td style="color:#ffd700;font-weight:bold;">${u.club_value.toLocaleString()} 🪙</td>
-                        <td class="view-col">VIEW</td>
-                    </tr>`;
+                tableHtml += `<tr class="rank-row-clickable" onclick="openSquadViewer(${i})"><td>#${i + 1}</td><td>${u.username || 'ANONYMOUS'}</td><td style="color:#ffd700;font-weight:bold;">${u.club_value.toLocaleString()} 🪙</td><td class="view-col">VIEW</td></tr>`;
             }
             list.innerHTML = tableHtml + '</table>';
         }
@@ -684,8 +621,7 @@
             const user = _lbData[idx];
             if (!user) return;
             document.getElementById('sv-title').innerText    = (user.username || 'ANONYMOUS') + "'S COLLECTION";
-            document.getElementById('sv-subtitle').innerText =
-                `${(user.squad || []).length} cards · DEX Value: ${user.club_value.toLocaleString()} 🪙`;
+            document.getElementById('sv-subtitle').innerText = `${(user.squad || []).length} cards · DEX Value: ${user.club_value.toLocaleString()} 🪙`;
             const grid = document.getElementById('sv-grid');
             if (!user.squad || user.squad.length === 0) {
                 grid.innerHTML = '<div class="sv-empty">This trainer has no cards yet.</div>';
@@ -695,57 +631,34 @@
             }
             document.getElementById('squad-viewer-modal').style.display = 'flex';
         }
-
-        function closeSquadViewer() {
-            document.getElementById('squad-viewer-modal').style.display = 'none';
-        }
+        function closeSquadViewer() { document.getElementById('squad-viewer-modal').style.display = 'none'; }
 
         // ─── TYPE HELPERS ─────────────────────────────────────────────────────────
-        // Reads p.type directly from your database column.
-        // Valid values: fire, water, grass, psychic, fighting, electric, ice, dragon, dark, normal
-        // Falls back to "normal" if the field is missing or unrecognised.
         const TYPE_ICONS = {
-            fire:     '🔥',
-            water:    '💧',
-            grass:    '🌿',
-            psychic:  '🔮',
-            fighting: '🥊',
-            electric: '⚡',
-            ice:      '❄️',
-            dragon:   '🐉',
-            dark:     '🌑',
-            normal:   '⭐',
+            fire:'🔥', water:'💧', grass:'🌿', psychic:'🔮', fighting:'🥊',
+            electric:'⚡', ice:'❄️', dragon:'🐉', dark:'🌑', normal:'⭐',
         };
-
-        function getCardType(p) {
-            return (p.type || 'normal').toLowerCase().trim();
-        }
+        function getCardType(p) { return (p.type || 'normal').toLowerCase().trim(); }
 
         // ─── CARD HTML ───────────────────────────────────────────────────────────
-               function generateCardHtml(p, clickable = true, clickType = 'details') {
-    const rarity    = (p.rarity || 'basic').toLowerCase();
-    const typeClass = getCardType(p);
-    const typeIcon  = TYPE_ICONS[typeClass] || '⭐';
-    const rarityClass = rarity.replace(' ', '-'); 
-
-    const isFullArt = rarity === 'ultra rare' || rarity === 'secret rare'
-                   || rarity === 'limited'    || rarity === '1st edition';
-    const val = getCardValue(p);
-    
-    let clickAttr = '';
-    if (clickable) {
-        if (clickType === 'details') {
-            // This now correctly passes either the ID or the full Card Object
-            const target = p.instanceId ? `'${p.instanceId}'` : JSON.stringify(p).replace(/"/g, '&quot;');
-            clickAttr = `onclick="showCardDetails(${target})"`;
-        } else {
-            // This is for the "Zoom" click inside the modal
-            const cardData = JSON.stringify(p).replace(/"/g, '&quot;');
-            clickAttr = `onclick="zoomCard(${cardData})"`;
-        }
-    }
-
-    return `
+        function generateCardHtml(p, clickable = true, clickType = 'details') {
+            const rarity    = (p.rarity || 'basic').toLowerCase();
+            const typeClass = getCardType(p);
+            const typeIcon  = TYPE_ICONS[typeClass] || '⭐';
+            const rarityClass = rarity.replace(' ', '-');
+            const isFullArt = rarity === 'ultra rare' || rarity === 'secret rare' || rarity === 'limited' || rarity === '1st edition';
+            const val = getCardValue(p);
+            let clickAttr = '';
+            if (clickable) {
+                if (clickType === 'details') {
+                    const target = p.instanceId ? `'${p.instanceId}'` : JSON.stringify(p).replace(/"/g, '&quot;');
+                    clickAttr = `onclick="showCardDetails(${target})"`;
+                } else {
+                    const cardData = JSON.stringify(p).replace(/"/g, '&quot;');
+                    clickAttr = `onclick="zoomCard(${cardData})"`;
+                }
+            }
+            return `
 <div class="pokemon-card ${rarityClass} type-${typeClass}" ${clickAttr}>
     ${isFullArt ? `<img src="${p.image_url}" class="card-full-image">` : ''}
     <div class="card-header ${isFullArt ? 'full-art-ui' : ''}">
@@ -767,64 +680,52 @@
     ${p.isSuperHolo ? '<div class="holo-sheen"></div>' : ''}
     ${p.serialNumber ? `<div class="card-serial">#${p.serialNumber}/10</div>` : ''}
 </div>`;
-}
-        // ─── CARD DETAILS MODAL ──────────────────────────────────────────────────
-        function showCardDetails(idOrObj) {
-    let p;
-    if (typeof idOrObj === 'string') {
-        p = mySquad.find(player => player.instanceId == idOrObj);
-    } else {
-        p = idOrObj;
-    }
-    if (!p) return;
-
-    _modalCurrentId = p.instanceId || null;
-    const val = getCardValue(p);
-    
-    // Setting the card render to trigger the zoom when clicked
-    document.getElementById('modal-card-render').innerHTML = generateCardHtml(p, true, 'zoom');
-    
-    document.getElementById('val-orig').innerText  = val.toLocaleString() + " 🪙";
-    const sellVal = getSellValue(p);
-    document.getElementById('val-sell').innerText  = p.instanceId ? sellVal.toLocaleString() + " 🪙" : 'NOT OWNED';
-    document.getElementById('val-date').innerText  = p.collectedDate || "Not in Collection";
-
-    const sellBtn = document.getElementById('modal-sell-btn');
-    const favBtn  = document.getElementById('modal-fav-btn');
-    const scBtn   = document.getElementById('modal-showcase-btn');
-
-    const isOwned = !!p.instanceId;
-    [sellBtn, favBtn, scBtn].forEach(btn => btn.style.display = isOwned ? 'block' : 'none');
-
-    if (isOwned) {
-        favBtn.innerText = p.isFavorite ? '⭐ FAVOURITED' : '☆ FAVOURITE';
-        scBtn.innerText = p.isShowcase ? '🏆 CURRENT SHOWCASE' : '🏆 SET AS SHOWCASE';
-
-        // QUICK SELL LOGIC
-        if (p.isFavorite) {
-            sellBtn.disabled = true;
-            sellBtn.innerText = '⭐ UNFAVOURITE TO SELL';
-        } else if (_lockedCardIds.has(p.instanceId)) {
-            sellBtn.disabled = true;
-            sellBtn.innerText = '🔒 LOCKED IN TRADE';
-        } else {
-            sellBtn.disabled = false;
-            sellBtn.innerText = `QUICK SELL (+${sellVal.toLocaleString()} 🪙)`;
-            sellBtn.onclick = () => { if(confirm(`Sell ${p.name}?`)) finalizeSale(p.instanceId); };
         }
-    }
 
-    document.getElementById('modal-overlay').style.display = 'flex';
-}
-function zoomCard(p) {
-    const overlay = document.getElementById('card-zoom-overlay');
-    const content = document.getElementById('zoom-content');
-    
-    // This calls your card generator but turns off clicking so you don't get stuck in a loop
-    content.innerHTML = generateCardHtml(p, false); 
-    
-    overlay.style.display = 'flex';
-}
+        // ─── CARD DETAILS MODAL ──────────────────────────────────────────────────
+        let _modalCurrentId = null;
+        function showCardDetails(idOrObj) {
+            let p;
+            if (typeof idOrObj === 'string') {
+                p = mySquad.find(player => player.instanceId == idOrObj);
+            } else {
+                p = idOrObj;
+            }
+            if (!p) return;
+            _modalCurrentId = p.instanceId || null;
+            const val = getCardValue(p);
+            document.getElementById('modal-card-render').innerHTML = generateCardHtml(p, true, 'zoom');
+            document.getElementById('val-orig').innerText  = val.toLocaleString() + " 🪙";
+            const sellVal = getSellValue(p);
+            document.getElementById('val-sell').innerText  = p.instanceId ? sellVal.toLocaleString() + " 🪙" : 'NOT OWNED';
+            document.getElementById('val-date').innerText  = p.collectedDate || "Not in Collection";
+            const sellBtn = document.getElementById('modal-sell-btn');
+            const favBtn  = document.getElementById('modal-fav-btn');
+            const scBtn   = document.getElementById('modal-showcase-btn');
+            const isOwned = !!p.instanceId;
+            [sellBtn, favBtn, scBtn].forEach(btn => btn.style.display = isOwned ? 'block' : 'none');
+            if (isOwned) {
+                favBtn.innerText = p.isFavorite ? '⭐ FAVOURITED' : '☆ FAVOURITE';
+                scBtn.innerText = p.isShowcase ? '🏆 CURRENT SHOWCASE' : '🏆 SET AS SHOWCASE';
+                if (p.isFavorite) {
+                    sellBtn.disabled = true; sellBtn.innerText = '⭐ UNFAVOURITE TO SELL';
+                } else if (_lockedCardIds.has(p.instanceId)) {
+                    sellBtn.disabled = true; sellBtn.innerText = '🔒 LOCKED IN TRADE';
+                } else {
+                    sellBtn.disabled = false;
+                    sellBtn.innerText = `QUICK SELL (+${sellVal.toLocaleString()} 🪙)`;
+                    sellBtn.onclick = () => { if(confirm(`Sell ${p.name}?`)) finalizeSale(p.instanceId); };
+                }
+            }
+            document.getElementById('modal-overlay').style.display = 'flex';
+        }
+
+        function zoomCard(p) {
+            const overlay = document.getElementById('card-zoom-overlay');
+            const content = document.getElementById('zoom-content');
+            content.innerHTML = generateCardHtml(p, false);
+            overlay.style.display = 'flex';
+        }
 
         async function modalToggleFavorite() {
             if (!_modalCurrentId) return;
@@ -837,8 +738,7 @@ function zoomCard(p) {
             mySquad.forEach(c => c.isShowcase = false);
             const p = mySquad.find(c => c.instanceId === _modalCurrentId);
             if (p) p.isShowcase = true;
-            renderSquad();
-            await saveGame();
+            renderSquad(); await saveGame();
             showCardDetails(_modalCurrentId);
             showToast(`🏆 ${p.name} is now your Showcase Card!`);
         }
@@ -859,8 +759,7 @@ function zoomCard(p) {
             const p = mySquad.find(c => c.instanceId === id);
             if (!p) return;
             p.isFavorite = !p.isFavorite;
-            renderSquad();
-            await saveGame();
+            renderSquad(); await saveGame();
         }
 
         // ─── VIEW MANAGEMENT ─────────────────────────────────────────────────────
@@ -888,7 +787,18 @@ function zoomCard(p) {
             if (id !== 'team')      exitMultiSelect();
         }
 
-        async function keepPlayer() { mySquad.push(currentPull); currentPull = null; renderSquad(); resetUI(); await saveGame(); }
+        async function keepPlayer() {
+            mySquad.push(currentPull);
+            // Check daily challenges for keeping cards
+            const rarity = (currentPull.rarity || '').toLowerCase();
+            tickChallenge('keep_cards', 1);
+            if (rarity === 'ultra rare' || rarity === 'secret rare' || rarity === 'limited') tickChallenge('keep_rare', 1);
+            const type = getCardType(currentPull);
+            if (type === 'fire') tickChallenge('keep_fire', 1);
+            if (type === 'water') tickChallenge('keep_water', 1);
+            if (type === 'grass') tickChallenge('keep_grass', 1);
+            currentPull = null; renderSquad(); resetUI(); await saveGame();
+        }
         async function sellPlayer() { balance += Math.floor(getCardValue(currentPull) * SELL_RATE); currentPull = null; resetUI(); await saveGame(); }
 
         function resetUI() {
@@ -903,10 +813,7 @@ function zoomCard(p) {
         function updateUI() {
             document.querySelectorAll('.bal-text').forEach(el => el.innerText = balance.toLocaleString());
             document.querySelectorAll('.team-count-menu').forEach(el => el.innerText = mySquad.length);
-            const dexScore = [...mySquad]
-                .sort((a,b) => getCardValue(b) - getCardValue(a))
-                .slice(0, 10)
-                .reduce((sum, p) => sum + getCardValue(p), 0);
+            const dexScore = [...mySquad].sort((a,b) => getCardValue(b) - getCardValue(a)).slice(0, 10).reduce((sum, p) => sum + getCardValue(p), 0);
             document.getElementById('nav-dex-value').innerText = dexScore.toLocaleString();
             document.getElementById('team-count').innerText = mySquad.length;
         }
@@ -921,28 +828,20 @@ function zoomCard(p) {
 
         function renderSquad() {
             const grid = document.getElementById('squad-grid');
-
             let displayList = [...mySquad];
-
             if (_activeTypeFilter === 'favorites') {
                 displayList = displayList.filter(p => p.isFavorite);
             } else if (_activeTypeFilter !== 'all') {
                 displayList = displayList.filter(p => getCardType(p) === _activeTypeFilter);
             }
-
             displayList.sort((a, b) => getCardValue(b) - getCardValue(a));
-
             if (displayList.length === 0) {
                 grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#333;padding:60px;font-size:0.85rem;letter-spacing:1px;">NO CARDS MATCH THIS FILTER</div>';
                 updateUI(); return;
             }
-
             grid.innerHTML = displayList.map(p => {
                 const isSelected = multiSelectMode && multiSelectIds.has(p.instanceId);
-                return `<div class="squad-card-wrap ${isSelected ? 'ms-selected' : ''}"
-                             onclick="squadCardClick(event, '${p.instanceId}')">
-                            ${generateCardHtml(p, !multiSelectMode)}
-                        </div>`;
+                return `<div class="squad-card-wrap ${isSelected ? 'ms-selected' : ''}" onclick="squadCardClick(event, '${p.instanceId}')">${generateCardHtml(p, !multiSelectMode)}</div>`;
             }).join('');
             updateUI();
             updatePlaytimeLabel();
@@ -955,21 +854,16 @@ function zoomCard(p) {
             document.getElementById('catalog-grid').style.display = 'flex';
             loadCatalog('basic');
         }
-
         function closeCatalog() {
             document.getElementById('catalog-grid').style.display = 'none';
             document.getElementById('slot-container').style.display = 'flex';
             document.getElementById('catalog-toggle-btn').style.display = 'block';
         }
-
         async function loadCatalog(tier) {
             showLoading();
             let query = _supabase.from('collection').select('*');
-            if (tier === 'holo') {
-                query = query.eq('isSuperHolo', true);
-            } else {
-                query = query.ilike('rarity', tier);
-            }
+            if (tier === 'holo') { query = query.eq('isSuperHolo', true); }
+            else { query = query.ilike('rarity', tier); }
             const { data, error } = await query;
             hideLoading();
             const grid = document.getElementById('catalog-cards');
@@ -981,33 +875,23 @@ function zoomCard(p) {
         // ─── MULTI-SELECT ─────────────────────────────────────────────────────────
         let multiSelectMode = false;
         let multiSelectIds  = new Set();
-
         function squadCardClick(event, id) {
             if (multiSelectMode) {
                 multiSelectIds.has(id) ? multiSelectIds.delete(id) : multiSelectIds.add(id);
                 renderSquad();
-            } else {
-                showCardDetails(id);
-            }
+            } else { showCardDetails(id); }
         }
-
-        function exitMultiSelect() {
-            multiSelectMode = false;
-            multiSelectIds.clear();
-        }
+        function exitMultiSelect() { multiSelectMode = false; multiSelectIds.clear(); }
 
         // ─── PLAYTIME TRACKING ────────────────────────────────────────────────────
         let _sessionStart    = Date.now();
         let _totalHoursPlayed = 0;
-
         function startPlaytimeTracking() { _sessionStart = Date.now(); }
-
         async function flushPlaytime() {
             const sessionHours = (Date.now() - _sessionStart) / (1000 * 60 * 60);
             _totalHoursPlayed += sessionHours;
             _sessionStart = Date.now();
         }
-
         function updatePlaytimeLabel() {
             const el = document.getElementById('squad-playtime-footer');
             if (!el) return;
@@ -1016,53 +900,168 @@ function zoomCard(p) {
             el.innerHTML = `TIME PLAYED: <span>${h}h ${m}m</span>`;
         }
 
+        // ─── DAILY CHALLENGES ────────────────────────────────────────────────────
+        let _dailyChallenges = null;
+
+        const CHALLENGE_DEFINITIONS = [
+            { id: 'open_packs',  label: '🎴 Open 3 packs',          target: 3,  reward: 300 },
+            { id: 'keep_cards',  label: '📦 Keep 5 cards',           target: 5,  reward: 500 },
+            { id: 'keep_rare',   label: '✨ Keep 1 Ultra Rare+',      target: 1,  reward: 1000 },
+            { id: 'keep_fire',   label: '🔥 Collect 2 Fire cards',   target: 2,  reward: 400 },
+            { id: 'keep_water',  label: '💧 Collect 2 Water cards',  target: 2,  reward: 400 },
+            { id: 'keep_grass',  label: '🌿 Collect 2 Grass cards',  target: 2,  reward: 400 },
+        ];
+
+        function getTodayKey() { return new Date().toDateString(); }
+
+        function initDailyChallengesState() {
+            const todayKey = getTodayKey();
+            if (!_dailyChallenges || _dailyChallenges.date !== todayKey) {
+                // New day — reset
+                const progress = {};
+                CHALLENGE_DEFINITIONS.forEach(c => { progress[c.id] = { count: 0, claimed: false }; });
+                _dailyChallenges = { date: todayKey, progress };
+            }
+        }
+
+        function renderDailyChallenges() {
+            initDailyChallengesState();
+            const panel = document.getElementById('daily-challenges-panel');
+            if (!panel) return;
+            const todayKey = getTodayKey();
+            const prog = _dailyChallenges.progress;
+            const allDone = CHALLENGE_DEFINITIONS.every(c => prog[c.id]?.claimed);
+
+            panel.innerHTML = `
+                <div class="challenges-header">📋 DAILY CHALLENGES</div>
+                ${allDone ? '<div class="challenges-all-done">🎉 ALL CHALLENGES COMPLETE! Come back tomorrow.</div>' : ''}
+                ${CHALLENGE_DEFINITIONS.map(c => {
+                    const p = prog[c.id] || { count: 0, claimed: false };
+                    const pct = Math.min((p.count / c.target) * 100, 100);
+                    const done = p.claimed;
+                    const ready = !done && p.count >= c.target;
+                    return `
+                    <div class="challenge-row ${done ? 'done' : (ready ? 'ready' : '')}">
+                        <div class="challenge-info">
+                            <div class="challenge-label">${c.label}</div>
+                            <div class="challenge-bar-wrap"><div class="challenge-bar" style="width:${pct}%"></div></div>
+                            <div class="challenge-progress">${Math.min(p.count, c.target)} / ${c.target}</div>
+                        </div>
+                        <div class="challenge-reward">+${c.reward.toLocaleString()} 🪙</div>
+                        ${ready ? `<button class="challenge-claim-btn" onclick="claimChallenge('${c.id}')">CLAIM</button>` : ''}
+                        ${done ? `<div class="challenge-claimed">✓</div>` : ''}
+                    </div>`;
+                }).join('')}
+            `;
+        }
+
+        function tickChallenge(id, amount) {
+            initDailyChallengesState();
+            const prog = _dailyChallenges.progress;
+            if (prog[id] && !prog[id].claimed) {
+                prog[id].count += amount;
+                renderDailyChallenges();
+                saveGame();
+            }
+        }
+
+        async function claimChallenge(id) {
+            initDailyChallengesState();
+            const def = CHALLENGE_DEFINITIONS.find(c => c.id === id);
+            const prog = _dailyChallenges.progress;
+            if (!def || !prog[id] || prog[id].claimed || prog[id].count < def.target) return;
+            prog[id].claimed = true;
+            balance += def.reward;
+            updateUI();
+            renderDailyChallenges();
+            await saveGame();
+            showToast(`🎉 Challenge complete! +${def.reward.toLocaleString()} 🪙`);
+        }
+
         // ─── DAILY REWARD ─────────────────────────────────────────────────────────
         async function initDailyReward() {
             const banner = document.getElementById('daily-collect-banner');
             const btn    = document.getElementById('daily-collect-btn');
             const sub    = document.getElementById('daily-collect-sub');
             if (!banner) return;
-
-            const { data } = await _supabase
-                .from('user_saves').select('last_daily_collect').eq('user_id', currentUser.id).single();
-
+            const { data } = await _supabase.from('user_saves').select('last_daily_collect').eq('user_id', currentUser.id).single();
             const lastCollectStr = data?.last_daily_collect;
             const today = new Date().toDateString();
             const alreadyClaimed = lastCollectStr && new Date(lastCollectStr).toDateString() === today;
-
             banner.style.display = 'flex';
             if (alreadyClaimed) {
                 banner.className = 'daily-collect-banner done';
                 sub.innerText = 'Come back tomorrow for your next reward!';
-                btn.className = 'daily-collect-btn done';
-                btn.innerText = 'COLLECTED';
+                btn.className = 'daily-collect-btn done'; btn.innerText = 'COLLECTED';
             } else {
                 banner.className = 'daily-collect-banner ready';
                 sub.innerText = 'Claim your free daily coins!';
-                btn.className = 'daily-collect-btn ready';
-                btn.innerText = 'COLLECT';
+                btn.className = 'daily-collect-btn ready'; btn.innerText = 'COLLECT';
             }
         }
 
         async function claimDailyReward() {
             const DAILY_REWARD = 500;
-            const { data } = await _supabase
-                .from('user_saves').select('last_daily_collect').eq('user_id', currentUser.id).single();
-
+            const { data } = await _supabase.from('user_saves').select('last_daily_collect').eq('user_id', currentUser.id).single();
             const lastCollectStr = data?.last_daily_collect;
             const today = new Date().toDateString();
-            if (lastCollectStr && new Date(lastCollectStr).toDateString() === today) {
-                showToast('Already claimed today!'); return;
-            }
-
+            if (lastCollectStr && new Date(lastCollectStr).toDateString() === today) { showToast('Already claimed today!'); return; }
             balance += DAILY_REWARD;
-            await _supabase.from('user_saves').upsert(
-                { user_id: currentUser.id, last_daily_collect: new Date().toISOString() },
-                { onConflict: 'user_id' }
-            );
-            updateUI();
-            initDailyReward();
+            await _supabase.from('user_saves').upsert({ user_id: currentUser.id, last_daily_collect: new Date().toISOString() }, { onConflict: 'user_id' });
+            updateUI(); initDailyReward();
             showToast(`🎁 Daily reward claimed! +${DAILY_REWARD.toLocaleString()} 🪙`);
+        }
+
+        // ─── SHARE COLLECTION ─────────────────────────────────────────────────────
+        function openShareModal() {
+            const username = currentUser?.user_metadata?.username || currentUser?.email?.split('@')[0] || 'trainer';
+            // Build a URL with the username as a query param — the page can read this on load
+            const shareUrl = `${window.location.origin}${window.location.pathname}?view=${encodeURIComponent(username)}`;
+            document.getElementById('share-link-input').value = shareUrl;
+            document.getElementById('share-copy-confirm').innerText = '';
+            // Show top 5 cards preview
+            const previewContainer = document.getElementById('share-preview-cards');
+            const top5 = [...mySquad].sort((a, b) => getCardValue(b) - getCardValue(a)).slice(0, 5);
+            previewContainer.innerHTML = top5.map(p => generateCardHtml(p, false)).join('');
+            document.getElementById('share-modal').style.display = 'flex';
+        }
+
+        function closeShareModal() { document.getElementById('share-modal').style.display = 'none'; }
+
+        function copyShareLink() {
+            const input = document.getElementById('share-link-input');
+            navigator.clipboard.writeText(input.value).then(() => {
+                document.getElementById('share-copy-confirm').innerText = '✓ LINK COPIED TO CLIPBOARD!';
+            }).catch(() => {
+                input.select(); document.execCommand('copy');
+                document.getElementById('share-copy-confirm').innerText = '✓ LINK COPIED!';
+            });
+        }
+
+        // Check on load if we're in "view" mode (shared link)
+        async function checkSharedView() {
+            const params = new URLSearchParams(window.location.search);
+            const viewUser = params.get('view');
+            if (!viewUser) return false;
+            // Show a read-only collection for this username
+            showLoading();
+            const { data } = await _supabase.from('user_saves').select('username, squad, club_value').ilike('username', viewUser).single();
+            hideLoading();
+            if (!data) { showToast('Trainer not found.'); return false; }
+            // Hide landing, show a simple read-only view using squad-viewer-modal
+            document.getElementById('view-landing').style.display = 'none';
+            document.getElementById('sv-title').innerText    = (data.username || viewUser).toUpperCase() + "'S COLLECTION";
+            document.getElementById('sv-subtitle').innerText = `${(data.squad || []).length} cards · DEX Value: ${(data.club_value || 0).toLocaleString()} 🪙`;
+            const grid = document.getElementById('sv-grid');
+            const sorted = [...(data.squad || [])].sort((a, b) => getCardValue(b) - getCardValue(a));
+            grid.innerHTML = sorted.length > 0 ? sorted.map(p => generateCardHtml(p, false)).join('') : '<div class="sv-empty">No cards yet.</div>';
+            document.getElementById('squad-viewer-modal').style.display = 'flex';
+            // Override close to go back to landing
+            document.getElementById('squad-viewer-modal').querySelector('.sv-close').onclick = () => {
+                document.getElementById('squad-viewer-modal').style.display = 'none';
+                document.getElementById('view-landing').style.display = '';
+            };
+            return true;
         }
 
         // ─── PRESENCE ────────────────────────────────────────────────────────────
@@ -1079,26 +1078,18 @@ function zoomCard(p) {
             showToast(`📊 ${tier.toUpperCase()} ODDS: ${weights[tier] || 'See store for details'}`, 5000);
         }
 
-        // ─── TRADE CONFIRM DISPATCHER ────────────────────────────────────────────
+        // ─── TRADE SYSTEM ────────────────────────────────────────────────────────
         let _tradeConfirmMode = 'board';
-
         function handleTradeConfirm() {
             if (_tradeConfirmMode === 'incoming') {
                 const trade = tradeState.pendingAcceptTrade;
                 if (trade) executeSwap(trade);
-            } else {
-                finaliseAccept();
-            }
+            } else { finaliseAccept(); }
         }
 
-        // ─── TRADE SYSTEM ────────────────────────────────────────────────────────
         let tradeState = {
-            activeTab: 'board',
-            postSelectedCard: null,
-            wantRarity: 'any',
-            wantMinRating: 4,
-            pendingAcceptTrade: null,
-            pendingAcceptMyCard: null,
+            activeTab: 'board', postSelectedCard: null, wantRarity: 'any',
+            wantMinRating: 4, pendingAcceptTrade: null, pendingAcceptMyCard: null,
         };
         let tradePollInterval = null;
 
@@ -1138,17 +1129,11 @@ function zoomCard(p) {
 
         function renderPostOfferGrid() {
             const grid = document.getElementById('post-pick-grid');
-            if (mySquad.length === 0) {
-                grid.innerHTML = '<p style="color:#555566;font-size:0.8rem;">No cards in your collection yet.</p>';
-                return;
-            }
-            grid.innerHTML = mySquad
-                .sort((a,b) => getCardValue(b) - getCardValue(a))
-                .map(p => `
-                    <div class="pick-card-wrap ${tradeState.postSelectedCard?.instanceId === p.instanceId ? 'selected' : ''}"
-                         onclick="selectPostCard('${p.instanceId}')">
-                        ${generateCardHtml(p, false)}
-                    </div>`).join('');
+            if (mySquad.length === 0) { grid.innerHTML = '<p style="color:#555566;font-size:0.8rem;">No cards in your collection yet.</p>'; return; }
+            grid.innerHTML = mySquad.sort((a,b) => getCardValue(b) - getCardValue(a)).map(p => `
+                <div class="pick-card-wrap ${tradeState.postSelectedCard?.instanceId === p.instanceId ? 'selected' : ''}" onclick="selectPostCard('${p.instanceId}')">
+                    ${generateCardHtml(p, false)}
+                </div>`).join('');
             updateWantSummary();
         }
 
@@ -1177,18 +1162,12 @@ function zoomCard(p) {
             const rarity   = rarityBtn?.dataset.rarity || 'any';
             const minRat   = tradeState.wantMinRating;
             const submitBtn = document.getElementById('post-offer-submit-btn');
-
             let parts = [];
-            if (rarity !== 'any') {
-                const labels = { common:'Basic', silver:'Rare', gold:'Ultra Rare', limited:'Limited', holo:'Secret Rare' };
-                parts.push(labels[rarity] || rarity);
-            }
+            if (rarity !== 'any') { const labels = { common:'Basic', silver:'Rare', gold:'Ultra Rare', limited:'Limited', holo:'Secret Rare' }; parts.push(labels[rarity] || rarity); }
             if (minRat > 1) parts.push('Rating ' + minRat + '+');
             if (nameVal) parts.push(`"${nameVal}"`);
-
             const summary = document.getElementById('want-summary');
             if (summary) summary.innerText = parts.length ? parts.join(' · ') : 'Any card will do';
-
             if (submitBtn) {
                 const hasCard = !!tradeState.postSelectedCard;
                 submitBtn.disabled = !hasCard;
@@ -1218,13 +1197,8 @@ function zoomCard(p) {
         async function loadTradeBoard() {
             const list = document.getElementById('trade-board-list');
             list.innerHTML = '<div class="no-trades"><div class="nt-icon">⏳</div><p>LOADING...</p></div>';
-            const { data, error } = await _supabase.from('trades')
-                .select('*').eq('status','open')
-                .neq('sender_id', currentUser.id)
-                .order('created_at', { ascending: false }).limit(30);
-            if (error || !data || data.length === 0) {
-                list.innerHTML = '<div class="no-trades"><div class="nt-icon">📋</div><p>NO OPEN OFFERS RIGHT NOW</p></div>'; return;
-            }
+            const { data, error } = await _supabase.from('trades').select('*').eq('status','open').neq('sender_id', currentUser.id).order('created_at', { ascending: false }).limit(30);
+            if (error || !data || data.length === 0) { list.innerHTML = '<div class="no-trades"><div class="nt-icon">📋</div><p>NO OPEN OFFERS RIGHT NOW</p></div>'; return; }
             list.innerHTML = data.map(t => `
                 <div class="trade-card">
                     <div class="trade-mini-card">${generateCardHtml(t.offered_card, false)}</div>
@@ -1243,12 +1217,8 @@ function zoomCard(p) {
         async function loadMyTrades() {
             const list = document.getElementById('trade-mine-list');
             list.innerHTML = '<div class="no-trades"><div class="nt-icon">⏳</div><p>LOADING...</p></div>';
-            const { data } = await _supabase.from('trades')
-                .select('*').eq('sender_id', currentUser.id)
-                .in('status', ['open','pending']).order('created_at', { ascending: false });
-            if (!data || data.length === 0) {
-                list.innerHTML = '<div class="no-trades"><div class="nt-icon">📋</div><p>NO ACTIVE OFFERS</p></div>'; return;
-            }
+            const { data } = await _supabase.from('trades').select('*').eq('sender_id', currentUser.id).in('status', ['open','pending']).order('created_at', { ascending: false });
+            if (!data || data.length === 0) { list.innerHTML = '<div class="no-trades"><div class="nt-icon">📋</div><p>NO ACTIVE OFFERS</p></div>'; return; }
             _myPendingTradeIds = data.filter(t => t.status === 'pending').map(t => t.id);
             list.innerHTML = data.map(t => `
                 <div class="trade-card mine">
@@ -1268,14 +1238,10 @@ function zoomCard(p) {
         async function loadIncomingTrades() {
             const list = document.getElementById('trade-incoming-list');
             list.innerHTML = '<div class="no-trades"><div class="nt-icon">⏳</div><p>LOADING...</p></div>';
-            const { data } = await _supabase.from('trades')
-                .select('*').eq('receiver_id', currentUser.id).eq('status','pending')
-                .order('created_at', { ascending: false });
+            const { data } = await _supabase.from('trades').select('*').eq('receiver_id', currentUser.id).eq('status','pending').order('created_at', { ascending: false });
             const countEl = document.getElementById('incoming-count-tab');
             if (countEl) countEl.innerText = data && data.length > 0 ? `(${data.length})` : '';
-            if (!data || data.length === 0) {
-                list.innerHTML = '<div class="no-trades"><div class="nt-icon">📬</div><p>NO INCOMING TRADE REQUESTS</p></div>'; return;
-            }
+            if (!data || data.length === 0) { list.innerHTML = '<div class="no-trades"><div class="nt-icon">📬</div><p>NO INCOMING TRADE REQUESTS</p></div>'; return; }
             list.innerHTML = data.map(t => `
                 <div class="trade-card incoming">
                     <div class="trade-mini-card">${generateCardHtml(t.offered_card, false)}</div>
@@ -1293,7 +1259,6 @@ function zoomCard(p) {
         }
 
         let _currentPickTradeId = null;
-
         function openPickModal(tradeId) {
             _currentPickTradeId = tradeId;
             const eligible = mySquad.filter(c => !_lockedCardIds.has(c.instanceId));
@@ -1307,7 +1272,6 @@ function zoomCard(p) {
         }
 
         let _pickedCardForTrade = null;
-
         function selectPickCard(id, wrap) {
             _pickedCardForTrade = mySquad.find(p => p.instanceId === id);
             document.querySelectorAll('.trade-pick-grid .pick-card-wrap').forEach(w => w.classList.remove('selected'));
@@ -1328,10 +1292,7 @@ function zoomCard(p) {
             await updateLockedCards();
         }
 
-        function closePickModal() {
-            document.getElementById('trade-pick-modal').style.display = 'none';
-            _pickedCardForTrade = null; _currentPickTradeId = null;
-        }
+        function closePickModal() { document.getElementById('trade-pick-modal').style.display = 'none'; _pickedCardForTrade = null; _currentPickTradeId = null; }
 
         async function showAcceptModal(tradeId) {
             const { data: t } = await _supabase.from('trades').select('*').eq('id', tradeId).single();
@@ -1344,25 +1305,20 @@ function zoomCard(p) {
             document.getElementById('trade-accept-modal').style.display = 'flex';
         }
 
-        function closeTAModal() {
-            document.getElementById('trade-accept-modal').style.display = 'none';
-            tradeState.pendingAcceptTrade = null;
-        }
+        function closeTAModal() { document.getElementById('trade-accept-modal').style.display = 'none'; tradeState.pendingAcceptTrade = null; }
 
         async function executeSwap(trade) {
             mySquad = mySquad.filter(c => c.instanceId !== trade.receiver_card.instanceId);
             const newCard = { ...trade.offered_card, instanceId: 'inst_' + Date.now(), collectedDate: new Date().toLocaleDateString() };
             mySquad.push(newCard);
             await _supabase.from('trades').update({ status: 'completed' }).eq('id', trade.id);
-            closeTAModal();
-            renderSquad(); updateUI();
+            closeTAModal(); renderSquad(); updateUI();
             await saveGame();
             showToast('🔄 Trade complete! You received ' + trade.offered_card.name);
         }
 
         async function cancelTrade(id) {
             await _supabase.from('trades').update({ status: 'cancelled' }).eq('id', id);
-            await updateLockedCards();
             loadMyTrades();
             showToast('Trade cancelled.');
         }
@@ -1377,8 +1333,7 @@ function zoomCard(p) {
             stopTradePoll();
             tradePollInterval = setInterval(async () => {
                 if (!currentUser) return;
-                const { data } = await _supabase.from('trades')
-                    .select('id').eq('receiver_id', currentUser.id).eq('status','pending').limit(1);
+                const { data } = await _supabase.from('trades').select('id').eq('receiver_id', currentUser.id).eq('status','pending').limit(1);
                 const badge = document.getElementById('trade-badge');
                 const countEl = document.getElementById('incoming-count-tab');
                 if (data && data.length > 0) {
@@ -1390,21 +1345,14 @@ function zoomCard(p) {
                 }
             }, 15000);
         }
-
-        function stopTradePoll() {
-            if (tradePollInterval) { clearInterval(tradePollInterval); tradePollInterval = null; }
-        }
+        function stopTradePoll() { if (tradePollInterval) { clearInterval(tradePollInterval); tradePollInterval = null; } }
 
         function handleSquadNavClick(e) {
             const menu = document.getElementById('nav-squad-menu');
             menu.classList.toggle('open');
             e.stopPropagation();
         }
-
-        function closeNavDropdown() {
-            document.getElementById('nav-squad-menu').classList.remove('open');
-        }
-
+        function closeNavDropdown() { document.getElementById('nav-squad-menu').classList.remove('open'); }
         document.addEventListener('click', () => closeNavDropdown());
 
         // ─── ARENA ───────────────────────────────────────────────────────────────
@@ -1412,24 +1360,50 @@ function zoomCard(p) {
             document.querySelectorAll('.arena-phase').forEach(p => p.classList.remove('active-phase'));
             document.getElementById('arena-lobby').classList.add('active-phase');
         }
-
         function arenaShowPhase(id) {
             document.querySelectorAll('.arena-phase').forEach(p => p.classList.remove('active-phase'));
             document.getElementById(id).classList.add('active-phase');
         }
 
-        async function getStandardCardForBattle() {
-    // Change 70 and 95 to 4 and 10
-    const { data, error } = await _supabase.from('collection').select('*')
-        .gte('rating', 4).lte('rating', 10).neq('rarity','Limited').neq('rarity','1st edition').limit(50);
-    if (error || !data || data.length === 0) return null;
-    return data[Math.floor(Math.random() * data.length)];
-}
+        // Uses the cached standard pack odds from Supabase
+        async function getArenaCard() {
+            const pack = _stdPackData;
+            if (!pack || !pack.odds_config || pack.odds_config.length === 0) {
+                // Fallback: random card rating 4-10
+                const { data } = await _supabase.from('collection').select('*').gte('rating', 4).lte('rating', 10).neq('rarity','Limited').neq('rarity','1st edition').limit(50);
+                if (!data || data.length === 0) return null;
+                return data[Math.floor(Math.random() * data.length)];
+            }
+            const roll = Math.random() * 100;
+            const rules = pack.odds_config;
+            let cumulative = 0;
+            let rule = rules[rules.length - 1];
+            for (const r of rules) { cumulative += r.chance; if (roll < cumulative) { rule = r; break; } }
+            const { data } = await _supabase.from('collection').select('*')
+                .gte('rating', rule.min).lte('rating', rule.max)
+                .neq('rarity', 'Limited').neq('rarity', '1st edition').eq('in_packs', true);
+            if (!data || data.length === 0) return null;
+            return data[Math.floor(Math.random() * data.length)];
+        }
+
+        // Returns effective battle value after applying type advantages
+        function getBattleValue(attacker, defender) {
+            let val = getCardValue(attacker);
+            const atkType = getCardType(attacker);
+            const defType = getCardType(defender);
+            if (TYPE_ADVANTAGES[atkType] === defType) {
+                val = Math.floor(val * TYPE_ADV_MULTIPLIER);
+            }
+            return val;
+        }
 
         async function startArenaBattle() {
             const ENTRY = 500;
             const WIN_BONUS = 500;
             if (balance < ENTRY) { showToast(`⚠ You need ${ENTRY.toLocaleString()} 🪙 to enter.`); return; }
+
+            // Refresh std pack data if missing
+            if (!_stdPackData) await prefetchStdPack();
 
             balance -= ENTRY;
             updateUI();
@@ -1441,8 +1415,8 @@ function zoomCard(p) {
             const lblInterval = setInterval(() => { lblEl.innerText = labels[li++ % labels.length]; }, 600);
 
             const [pCard, bCard] = await Promise.all([
-                getStandardCardForBattle(),
-                getStandardCardForBattle(),
+                getArenaCard(),
+                getArenaCard(),
                 new Promise(r => setTimeout(r, 1600))
             ]);
             clearInterval(lblInterval);
@@ -1455,21 +1429,34 @@ function zoomCard(p) {
             pCard.instanceId    = 'inst_' + Date.now();
             pCard.collectedDate = new Date().toLocaleDateString();
 
-            const pVal = getCardValue(pCard);
-            const bVal = getCardValue(bCard);
+            // Apply type advantages
+            const pVal = getBattleValue(pCard, bCard);
+            const bVal = getBattleValue(bCard, pCard);
+            const pRawVal = getCardValue(pCard);
+            const bRawVal = getCardValue(bCard);
+
+            const pType = getCardType(pCard);
+            const bType = getCardType(bCard);
+            let typeAdvMsg = '';
+            if (TYPE_ADVANTAGES[pType] === bType) {
+                typeAdvMsg = `⚡ TYPE ADVANTAGE: Your ${pType.toUpperCase()} beats ${bType.toUpperCase()}! (+20% value)`;
+            } else if (TYPE_ADVANTAGES[bType] === pType) {
+                typeAdvMsg = `⚡ TYPE DISADVANTAGE: Bot's ${bType.toUpperCase()} beats your ${pType.toUpperCase()}! (-20% effective)`;
+            }
 
             let bannerClass, bannerText, msg;
             if (pVal > bVal) {
                 bannerClass = 'win'; bannerText = 'VICTORY';
-                msg = `Your ${pCard.name} (${pVal.toLocaleString()} 🪙) beats Bot's ${bCard.name} (${bVal.toLocaleString()} 🪙). Card kept + ${WIN_BONUS.toLocaleString()} 🪙!`;
+                msg = `Your ${pCard.name} (${pVal.toLocaleString()} 🪙 effective) beats Bot's ${bCard.name} (${bVal.toLocaleString()} 🪙). Card kept + ${WIN_BONUS.toLocaleString()} 🪙!`;
                 balance += WIN_BONUS; mySquad.push(pCard); renderSquad();
+                tickChallenge('keep_cards', 1);
             } else if (pVal === bVal) {
                 bannerClass = 'tie'; bannerText = 'DRAW';
-                msg = `Both drew ${pVal.toLocaleString()} 🪙 value. Entry fee refunded.`;
+                msg = `Both drew equal effective value (${pVal.toLocaleString()} 🪙). Entry fee refunded.`;
                 balance += ENTRY;
             } else {
                 bannerClass = 'loss'; bannerText = 'DEFEAT';
-                msg = `Bot's ${bCard.name} (${bVal.toLocaleString()} 🪙) beats your ${pCard.name} (${pVal.toLocaleString()} 🪙). Card burned.`;
+                msg = `Bot's ${bCard.name} (${bVal.toLocaleString()} 🪙 effective) beats your ${pCard.name} (${pVal.toLocaleString()} 🪙). Card burned.`;
             }
 
             updateUI();
@@ -1479,10 +1466,12 @@ function zoomCard(p) {
             banner.className = 'arena-banner ' + bannerClass;
             banner.innerText = bannerText;
 
-            document.getElementById('arena-card-player').innerHTML =
-                `<div class="arena-flipin">${generateCardHtml(pCard, false)}</div>`;
-            document.getElementById('arena-card-bot').innerHTML =
-                `<div class="arena-flipin" style="animation-delay:0.18s">${generateCardHtml(bCard, false)}</div>`;
+            const typeAdvEl = document.getElementById('arena-type-adv-msg');
+            typeAdvEl.innerText = typeAdvMsg;
+            typeAdvEl.style.display = typeAdvMsg ? 'block' : 'none';
+
+            document.getElementById('arena-card-player').innerHTML = `<div class="arena-flipin">${generateCardHtml(pCard, false)}</div>`;
+            document.getElementById('arena-card-bot').innerHTML    = `<div class="arena-flipin" style="animation-delay:0.18s">${generateCardHtml(bCard, false)}</div>`;
 
             const pValEl = document.getElementById('arena-val-player');
             const bValEl = document.getElementById('arena-val-bot');
@@ -1508,13 +1497,10 @@ function zoomCard(p) {
         async function loadLimitedStock() {
             const banner = document.getElementById('limited-stock-banner');
             const list   = document.getElementById('limited-stock-list');
-            const { data: limitedPlayers, error } = await _supabase
-                .from('collection').select('id, name').ilike('rarity', 'Limited');
+            const { data: limitedPlayers, error } = await _supabase.from('collection').select('id, name').ilike('rarity', 'Limited');
             if (error || !limitedPlayers || limitedPlayers.length === 0) { banner.style.display = 'none'; return; }
-
             list.innerHTML = '';
             banner.style.display = 'block';
-
             for (const player of limitedPlayers) {
                 const { data: issuedCount } = await _supabase.rpc('count_limited_player', { pid: player.id });
                 const remaining = 10 - (issuedCount || 0);
@@ -1534,14 +1520,12 @@ function zoomCard(p) {
             const sub       = document.getElementById('lpa-sub');
             const countdown = document.getElementById('lpa-countdown');
             const bar       = document.getElementById('lpa-progress-bar');
-
             const username = currentUser?.user_metadata?.username || 'A TRAINER';
             headline.innerText = `${username.toUpperCase()} PULLED A LIMITED!`;
             sub.innerText = `${card.name} · Serial #${card.serialNumber || '?'}/10`;
             cardWrap.innerHTML = generateCardHtml(card, false);
             bar.style.width = '100%';
             overlay.style.display = 'flex';
-
             let secs = 5;
             const tick = setInterval(() => {
                 secs--;
@@ -1564,47 +1548,28 @@ function zoomCard(p) {
         function renderExchanges() {
             const list = document.getElementById('exchange-list');
             if (!list) return;
-            if (_exchangeConfig.length === 0) {
-                list.innerHTML = '<p style="color:#555566;text-align:center;padding:40px;">No exchanges available right now.</p>'; return;
-            }
+            if (_exchangeConfig.length === 0) { list.innerHTML = '<p style="color:#555566;text-align:center;padding:40px;">No exchanges available right now.</p>'; return; }
             list.innerHTML = _exchangeConfig.map(exc => {
                 const done = completedExchanges.includes(exc.id);
                 const canDo = !done && checkExchangeRequirements(exc);
                 const statusClass = done ? 'done' : (canDo ? 'available' : 'locked');
                 const statusLabel = done ? 'COMPLETED' : (canDo ? 'AVAILABLE' : 'LOCKED');
                 const progress = getExchangeProgress(exc);
-
-                const costCards = (exc.cost_cards || []).slice(0,3).map(c =>
-                    `<div class="exc-cost-card">${generateCardHtml(c, false)}</div>`).join('');
-
+                const costCards = (exc.cost_cards || []).slice(0,3).map(c => `<div class="exc-cost-card">${generateCardHtml(c, false)}</div>`).join('');
                 return `
                 <div class="exc-item ${statusClass}">
                     <div class="exc-item-header">
-                        <div>
-                            <div class="exc-item-name">${exc.name || 'EXCHANGE'}</div>
-                            <div class="exc-item-desc">${exc.description || ''}</div>
-                        </div>
+                        <div><div class="exc-item-name">${exc.name || 'EXCHANGE'}</div><div class="exc-item-desc">${exc.description || ''}</div></div>
                         <div class="exc-status-badge ${statusClass}">${statusLabel}</div>
                     </div>
                     <div class="exc-cards-row">
-                        <div class="exc-cost-col">
-                            <div class="exc-side-label">YOU GIVE</div>
-                            <div class="exc-cost-stack">${costCards}</div>
-                            <div class="exc-cost-count">× ${exc.cost_count || 1}</div>
-                        </div>
+                        <div class="exc-cost-col"><div class="exc-side-label">YOU GIVE</div><div class="exc-cost-stack">${costCards}</div><div class="exc-cost-count">× ${exc.cost_count || 1}</div></div>
                         <div class="exc-arrow">→</div>
-                        <div class="exc-reward-col">
-                            <div class="exc-side-label">YOU GET</div>
-                            <div class="exc-reward-wrap">${exc.reward_card ? generateCardHtml(exc.reward_card, false) : ''}</div>
-                        </div>
+                        <div class="exc-reward-col"><div class="exc-side-label">YOU GET</div><div class="exc-reward-wrap">${exc.reward_card ? generateCardHtml(exc.reward_card, false) : ''}</div></div>
                     </div>
-                    <div class="exc-progress-wrap">
-                        <div class="exc-progress-bar" style="width:${progress.pct}%"></div>
-                    </div>
+                    <div class="exc-progress-wrap"><div class="exc-progress-bar" style="width:${progress.pct}%"></div></div>
                     <div class="exc-progress-label">${progress.label}</div>
-                    <button class="exc-btn ${done ? 'done' : (canDo ? 'go' : 'locked')}"
-                            onclick="${canDo ? `doExchange('${exc.id}')` : ''}"
-                            ${done || !canDo ? 'disabled' : ''}>
+                    <button class="exc-btn ${done ? 'done' : (canDo ? 'go' : 'locked')}" onclick="${canDo ? `doExchange('${exc.id}')` : ''}" ${done || !canDo ? 'disabled' : ''}>
                         ${done ? '✓ COMPLETED' : (canDo ? 'EXCHANGE NOW' : 'REQUIREMENTS NOT MET')}
                     </button>
                 </div>`;
@@ -1613,18 +1578,13 @@ function zoomCard(p) {
 
         function checkExchangeRequirements(exc) {
             if (!exc.cost_rarity) return false;
-            const owned = mySquad.filter(c =>
-                (c.rarity || '').toLowerCase() === exc.cost_rarity.toLowerCase() && !c.isExchange
-            );
-            return owned.length >= (exc.cost_count || 1);
+            return mySquad.filter(c => (c.rarity || '').toLowerCase() === exc.cost_rarity.toLowerCase() && !c.isExchange).length >= (exc.cost_count || 1);
         }
 
         function getExchangeProgress(exc) {
             if (!exc.cost_rarity) return { pct: 0, label: '' };
             const need = exc.cost_count || 1;
-            const have = mySquad.filter(c =>
-                (c.rarity || '').toLowerCase() === exc.cost_rarity.toLowerCase() && !c.isExchange
-            ).length;
+            const have = mySquad.filter(c => (c.rarity || '').toLowerCase() === exc.cost_rarity.toLowerCase() && !c.isExchange).length;
             const pct = Math.min((have / need) * 100, 100);
             return { pct, label: `${Math.min(have, need)} / ${need} ${exc.cost_rarity} cards` };
         }
@@ -1632,31 +1592,21 @@ function zoomCard(p) {
         async function doExchange(excId) {
             const exc = _exchangeConfig.find(e => e.id === excId);
             if (!exc || !checkExchangeRequirements(exc)) return;
-
             let removed = 0;
             mySquad = mySquad.filter(c => {
-                if (removed < exc.cost_count && (c.rarity || '').toLowerCase() === exc.cost_rarity.toLowerCase() && !c.isExchange) {
-                    removed++; return false;
-                }
+                if (removed < exc.cost_count && (c.rarity || '').toLowerCase() === exc.cost_rarity.toLowerCase() && !c.isExchange) { removed++; return false; }
                 return true;
             });
-
             if (exc.reward_card) {
-                const reward = {
-                    ...exc.reward_card,
-                    instanceId: 'inst_' + Date.now(),
-                    collectedDate: new Date().toLocaleDateString(),
-                    isExchange: true
-                };
-                mySquad.push(reward);
+                mySquad.push({ ...exc.reward_card, instanceId: 'inst_' + Date.now(), collectedDate: new Date().toLocaleDateString(), isExchange: true });
             }
-
             completedExchanges.push(excId);
-            renderSquad(); updateUI();
-            await saveGame();
-            renderExchanges();
+            renderSquad(); updateUI(); await saveGame(); renderExchanges();
             showToast(`🔁 Exchange complete! You received ${exc.reward_card?.name || 'a reward card'}!`);
         }
 
         // ─── INIT ─────────────────────────────────────────────────────────────────
-        window.addEventListener('load', checkExistingSession);
+        window.addEventListener('load', async () => {
+            const isShared = await checkSharedView();
+            if (!isShared) checkExistingSession();
+        });

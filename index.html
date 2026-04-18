@@ -14,13 +14,47 @@
         <div class="loading-text">LOADING...</div>
     </div>
 
-    <div id="view-login" class="active">
+    <!-- ─── LANDING PAGE ─── -->
+    <div id="view-landing" class="active">
         <div class="pokeballs-bg">
-            <div class="pokeball pb1"></div>
-            <div class="pokeball pb2"></div>
-            <div class="pokeball pb3"></div>
+            <div class="pokeball pb1"></div><div class="pokeball pb2"></div><div class="pokeball pb3"></div>
+        </div>
+        <div class="landing-wrap">
+            <div class="landing-left">
+                <div class="landing-logo">
+                    <span class="logo-poke">COLLECTION</span><span class="logo-draft">BASE</span>
+                </div>
+                <div class="landing-tagline">COLLECT · TRADE · BATTLE · DOMINATE</div>
+                <div class="landing-features">
+                    <div class="landing-feat">🎴 Open packs and pull rare cards</div>
+                    <div class="landing-feat">💰 Earn passive income from your Daycare</div>
+                    <div class="landing-feat">🔄 Trade cards with other trainers</div>
+                    <div class="landing-feat">⚔ Battle in the arena to win big</div>
+                    <div class="landing-feat">🏆 Climb the global rankings</div>
+                </div>
+                <div class="landing-btns">
+                    <button class="btn btn-primary" style="max-width:220px;" onclick="showAuthPanel(false)">CREATE ACCOUNT</button>
+                    <button class="btn btn-outline" style="max-width:220px;" onclick="showAuthPanel(true)">SIGN IN</button>
+                </div>
+                <div class="landing-beta-note">🔒 FREE TO PLAY · BETA</div>
+            </div>
+            <div class="landing-right">
+                <div class="landing-card-showcase" id="landing-card-showcase">
+                    <div class="landing-shimmer-card"></div>
+                    <div class="landing-shimmer-card" style="animation-delay:0.3s"></div>
+                    <div class="landing-shimmer-card" style="animation-delay:0.6s"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── AUTH PANEL ─── -->
+    <div id="view-login">
+        <div class="pokeballs-bg">
+            <div class="pokeball pb1"></div><div class="pokeball pb2"></div><div class="pokeball pb3"></div>
         </div>
         <div class="login-box">
+            <button class="landing-back-btn" onclick="hideLanding()">← BACK</button>
             <div class="login-logo">
                 <span class="logo-poke">Poké</span><span class="logo-draft">Draft</span>
                 <div class="login-logo-sub">CARD COLLECTION GAME · BETA</div>
@@ -50,6 +84,8 @@
                     <button onclick="showView('team'); closeNavDropdown()">My Collection (<span class="team-count-menu">0</span>)</button>
                     <div class="menu-divider"></div>
                     <button onclick="showView('exchanges'); closeNavDropdown()">Exchanges</button>
+                    <div class="menu-divider"></div>
+                    <button onclick="openShareModal(); closeNavDropdown()">📤 Share My Collection</button>
                 </div>
             </div>
             <button id="nav-office" onclick="showView('office')">
@@ -90,6 +126,7 @@
         <div class="home-content">
             <div class="home-logo"><span class="logo-poke">COLLECTION</span><span class="logo-draft">BASE</span></div>
             <div id="welcome-msg"></div>
+            <div id="daily-challenges-panel" class="challenges-panel" style="margin-top:16px;width:100%;"></div>
             <button class="btn btn-primary" style="margin-top:10px;" onclick="showView('slots')">OPEN PACKS</button>
         </div>
     </div>
@@ -109,7 +146,6 @@
                 <button class="btn btn-blue" style="width:48%;" onclick="keepPlayer()">KEEP</button>
                 <button id="sellBtn" class="btn btn-danger" style="width:48%;" onclick="sellPlayer()">SELL</button>
             </div>
-
             <div id="daily-collect-banner" class="daily-collect-banner" style="display:none;">
                 <div class="daily-collect-info">
                     <div class="daily-collect-title">🎁 DAILY REWARD</div>
@@ -117,22 +153,17 @@
                 </div>
                 <button class="daily-collect-btn" id="daily-collect-btn" onclick="claimDailyReward()">COLLECT</button>
             </div>
-
             <div id="packArea">
                 <button id="btn-std"   class="btn pack-btn pack-btn-std"   onclick="preparePack('std')">Standard (500 🪙)</button>
                 <button id="btn-pre"   class="btn pack-btn pack-btn-pre"   onclick="preparePack('pre')">Premium (2500 🪙)</button>
                 <button id="btn-elt"   class="btn pack-btn pack-btn-elt"   onclick="preparePack('elt')">Elite (10000 🪙)</button>
                 <button id="btn-promo" class="btn pack-btn pack-btn-promo" onclick="preparePack('promo')">1st Edition (15000 🪙)</button>
             </div>
-
-            <div id="limited-stock-banner" style="margin-top:14px;display:none;
-                 background:linear-gradient(135deg,#0a0a0a,#111);border:1px solid #bebebe44;
-                 border-radius:12px;padding:12px 16px;text-align:center;">
+            <div id="limited-stock-banner" style="margin-top:14px;display:none;background:linear-gradient(135deg,#0a0a0a,#111);border:1px solid #bebebe44;border-radius:12px;padding:12px 16px;text-align:center;">
                 <div style="font-size:0.6rem;color:#bebebe;letter-spacing:2px;font-weight:900;margin-bottom:8px;text-transform:uppercase;">🔒 LIMITED CARDS REMAINING</div>
                 <div id="limited-stock-list" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;"></div>
             </div>
         </div>
-
         <div id="catalog-grid" style="display:none;flex-direction:column;align-items:center;padding-bottom:40px;">
             <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;justify-content:center;margin-top:10px;">
                 <button class="btn" style="background:#ffcb05;color:black;width:auto;padding:10px 20px;" onclick="loadCatalog('basic')">BASIC</button>
@@ -149,6 +180,7 @@
     <div id="view-team" class="view">
         <div class="view-header">
             <h2 class="view-title">MY COLLECTION</h2>
+            <button class="btn btn-outline" style="width:auto;padding:8px 20px;font-size:0.75rem;margin-top:8px;" onclick="openShareModal()">📤 SHARE COLLECTION</button>
         </div>
         <div class="team-filter-bar" id="team-filter-bar">
             <button class="team-filter-btn active" onclick="filterSquad('all',this)">ALL</button>
@@ -159,7 +191,6 @@
             <button class="team-filter-btn" onclick="filterSquad('psychic',this)">🔮 PSYCHIC</button>
             <button class="team-filter-btn" onclick="filterSquad('fighting',this)">🥊 FIGHTING</button>
             <button class="team-filter-btn" onclick="filterSquad('favorites',this)">⭐ FAVS</button>
-            
         </div>
         <div id="squad-grid" class="squad-grid"></div>
         <div class="squad-playtime-footer" id="squad-playtime-footer"></div>
@@ -188,16 +219,31 @@
     <div id="view-arena" class="view">
         <div class="view-header">
             <h2 class="view-title">⚔ BATTLE ARENA</h2>
-            <p class="view-sub">Pay 500 🪙 · Draw a card vs the bot · Higher value wins</p>
+            <p class="view-sub">Pay 500 🪙 · Standard pack odds · Type advantages apply</p>
         </div>
         <div id="arena-lobby" class="arena-phase active-phase">
             <div class="arena-lobby-inner">
                 <div class="arena-cost-badge">ENTRY: 500 🪙</div>
                 <div class="arena-rules">
-                    <div class="arena-rule">🎴 A random card is drawn for each side</div>
+                    <div class="arena-rule">🎴 Cards drawn using your Standard pack odds</div>
                     <div class="arena-rule">🏆 Win: Keep your card + 500 🪙 bonus</div>
                     <div class="arena-rule">🤝 Draw: Entry fee refunded</div>
                     <div class="arena-rule">💀 Loss: Card is burned</div>
+                    <div class="arena-rule" style="color:#ffcb05;">⚡ TYPE ADVANTAGES give +20% value bonus</div>
+                </div>
+                <div class="type-chart-wrap">
+                    <div class="type-chart-title">TYPE ADVANTAGE CHART</div>
+                    <div class="type-chart-grid">
+                        <div class="tc-row"><span class="tc-type fire">🔥 FIRE</span><span class="tc-arrow">beats</span><span class="tc-type grass">🌿 GRASS</span></div>
+                        <div class="tc-row"><span class="tc-type water">💧 WATER</span><span class="tc-arrow">beats</span><span class="tc-type fire">🔥 FIRE</span></div>
+                        <div class="tc-row"><span class="tc-type grass">🌿 GRASS</span><span class="tc-arrow">beats</span><span class="tc-type water">💧 WATER</span></div>
+                        <div class="tc-row"><span class="tc-type psychic">🔮 PSYCHIC</span><span class="tc-arrow">beats</span><span class="tc-type fighting">🥊 FIGHTING</span></div>
+                        <div class="tc-row"><span class="tc-type fighting">🥊 FIGHTING</span><span class="tc-arrow">beats</span><span class="tc-type dark">🌑 DARK</span></div>
+                        <div class="tc-row"><span class="tc-type dark">🌑 DARK</span><span class="tc-arrow">beats</span><span class="tc-type psychic">🔮 PSYCHIC</span></div>
+                        <div class="tc-row"><span class="tc-type electric">⚡ ELECTRIC</span><span class="tc-arrow">beats</span><span class="tc-type water">💧 WATER</span></div>
+                        <div class="tc-row"><span class="tc-type ice">❄️ ICE</span><span class="tc-arrow">beats</span><span class="tc-type dragon">🐉 DRAGON</span></div>
+                        <div class="tc-row"><span class="tc-type dragon">🐉 DRAGON</span><span class="tc-arrow">beats</span><span class="tc-type normal">⭐ NORMAL</span></div>
+                    </div>
                 </div>
                 <button class="arena-enter-btn" onclick="startArenaBattle()">ENTER BATTLE</button>
             </div>
@@ -221,6 +267,7 @@
         <div id="arena-reveal" class="arena-phase">
             <div class="arena-reveal-inner">
                 <div class="arena-banner" id="arena-banner">RESULT</div>
+                <div id="arena-type-adv-msg" class="arena-type-msg"></div>
                 <div class="arena-cards-row">
                     <div class="arena-card-col">
                         <div class="arena-slot-label">YOU</div>
@@ -252,46 +299,6 @@
         <div id="leaderboard-container"></div>
     </div>
 
-    <div id="view-exchanges" class="view">
-        <div class="view-header">
-            <h2 class="view-title">🔁 EXCHANGES</h2>
-            <p class="view-sub">Trade in card sets for rare rewards</p>
-        </div>
-        <div class="exc-filter-row" id="exc-filter-row" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;"></div>
-        <div id="exchange-list"></div>
-    </div>
-
-    <div id="trade-accept-modal">
-        <div class="trade-accept-box">
-            <div class="trade-accept-title">INCOMING TRADE REQUEST</div>
-            <div class="trade-accept-from" id="tam-from"></div>
-            <div class="trade-swap-row">
-                <div>
-                    <div class="trade-swap-label">YOU RECEIVE</div>
-                    <div id="tam-recv-card"></div>
-                </div>
-                <div class="trade-swap-arrow">⇄</div>
-                <div>
-                    <div class="trade-swap-label">YOU SEND</div>
-                    <div id="tam-send-card"></div>
-                </div>
-            </div>
-            <div class="trade-accept-btns">
-                <button id="trade-confirm-yes" onclick="handleTradeConfirm()">CONFIRM TRADE</button>
-                <button id="trade-confirm-no" onclick="closeTAModal()">CANCEL</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="trade-pick-modal">
-        <div class="trade-pick-box">
-            <div class="trade-pick-title">CHOOSE A CARD TO OFFER</div>
-            <div class="trade-pick-sub" id="trade-pick-sub">Select a card from your collection that meets the request</div>
-            <div class="trade-pick-grid" id="trade-pick-grid"></div>
-            <button id="trade-pick-cancel" onclick="closePickModal()">CANCEL</button>
-        </div>
-    </div>
-
     <div id="view-trade" class="view">
         <div class="view-header">
             <h2 class="view-title">🔄 TRADE BOARD</h2>
@@ -303,21 +310,9 @@
             <button class="trade-tab" onclick="switchTradeTab('incoming')">INCOMING <span id="incoming-count-tab"></span></button>
             <button class="trade-tab" onclick="switchTradeTab('post')">+ POST OFFER</button>
         </div>
-        <div class="trade-tab-panel active" id="trade-panel-board">
-            <div class="trade-board" id="trade-board-list">
-                <div class="no-trades"><div class="nt-icon">📋</div><p>LOADING OFFERS...</p></div>
-            </div>
-        </div>
-        <div class="trade-tab-panel" id="trade-panel-mine">
-            <div class="trade-board" id="trade-mine-list">
-                <div class="no-trades"><div class="nt-icon">📋</div><p>LOADING YOUR OFFERS...</p></div>
-            </div>
-        </div>
-        <div class="trade-tab-panel" id="trade-panel-incoming">
-            <div class="trade-board" id="trade-incoming-list">
-                <div class="no-trades"><div class="nt-icon">📬</div><p>NO INCOMING TRADE REQUESTS</p></div>
-            </div>
-        </div>
+        <div class="trade-tab-panel active" id="trade-panel-board"><div class="trade-board" id="trade-board-list"><div class="no-trades"><div class="nt-icon">📋</div><p>LOADING OFFERS...</p></div></div></div>
+        <div class="trade-tab-panel" id="trade-panel-mine"><div class="trade-board" id="trade-mine-list"><div class="no-trades"><div class="nt-icon">📋</div><p>LOADING YOUR OFFERS...</p></div></div></div>
+        <div class="trade-tab-panel" id="trade-panel-incoming"><div class="trade-board" id="trade-incoming-list"><div class="no-trades"><div class="nt-icon">📬</div><p>NO INCOMING TRADE REQUESTS</p></div></div></div>
         <div class="trade-tab-panel" id="trade-panel-post">
             <div class="post-offer-wrap">
                 <div class="post-offer-col">
@@ -328,12 +323,12 @@
                 <div class="post-offer-col">
                     <div class="post-offer-label">2 · WHAT DO YOU WANT IN RETURN?</div>
                     <div class="want-filters" id="want-rarity-filters">
-                        <button class="want-filter-btn active" data-rarity="any"        onclick="toggleWantRarity(this)">Any Rarity</button>
-                        <button class="want-filter-btn" data-rarity="common"            onclick="toggleWantRarity(this)">Basic</button>
-                        <button class="want-filter-btn" data-rarity="silver"            onclick="toggleWantRarity(this)">Rare</button>
-                        <button class="want-filter-btn" data-rarity="gold"              onclick="toggleWantRarity(this)">Ultra Rare</button>
-                        <button class="want-filter-btn" data-rarity="limited"           onclick="toggleWantRarity(this)">Limited</button>
-                        <button class="want-filter-btn" data-rarity="holo"              onclick="toggleWantRarity(this)">Secret Rare</button>
+                        <button class="want-filter-btn active" data-rarity="any" onclick="toggleWantRarity(this)">Any Rarity</button>
+                        <button class="want-filter-btn" data-rarity="common" onclick="toggleWantRarity(this)">Basic</button>
+                        <button class="want-filter-btn" data-rarity="silver" onclick="toggleWantRarity(this)">Rare</button>
+                        <button class="want-filter-btn" data-rarity="gold" onclick="toggleWantRarity(this)">Ultra Rare</button>
+                        <button class="want-filter-btn" data-rarity="limited" onclick="toggleWantRarity(this)">Limited</button>
+                        <button class="want-filter-btn" data-rarity="holo" onclick="toggleWantRarity(this)">Secret Rare</button>
                     </div>
                     <div class="want-rating-row">
                         <label>MIN RATING</label>
@@ -350,9 +345,42 @@
                     </div>
                 </div>
             </div>
-            <button class="post-offer-submit" id="post-offer-submit-btn" onclick="submitTradeOffer()" disabled>
-                SELECT A CARD TO CONTINUE
-            </button>
+            <button class="post-offer-submit" id="post-offer-submit-btn" onclick="submitTradeOffer()" disabled>SELECT A CARD TO CONTINUE</button>
+        </div>
+    </div>
+
+    <div id="view-exchanges" class="view">
+        <div class="view-header">
+            <h2 class="view-title">🔁 EXCHANGES</h2>
+            <p class="view-sub">Trade in card sets for rare rewards</p>
+        </div>
+        <div class="exc-filter-row" id="exc-filter-row" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;"></div>
+        <div id="exchange-list"></div>
+    </div>
+
+    <!-- MODALS -->
+    <div id="trade-accept-modal">
+        <div class="trade-accept-box">
+            <div class="trade-accept-title">INCOMING TRADE REQUEST</div>
+            <div class="trade-accept-from" id="tam-from"></div>
+            <div class="trade-swap-row">
+                <div><div class="trade-swap-label">YOU RECEIVE</div><div id="tam-recv-card"></div></div>
+                <div class="trade-swap-arrow">⇄</div>
+                <div><div class="trade-swap-label">YOU SEND</div><div id="tam-send-card"></div></div>
+            </div>
+            <div class="trade-accept-btns">
+                <button id="trade-confirm-yes" onclick="handleTradeConfirm()">CONFIRM TRADE</button>
+                <button id="trade-confirm-no" onclick="closeTAModal()">CANCEL</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="trade-pick-modal">
+        <div class="trade-pick-box">
+            <div class="trade-pick-title">CHOOSE A CARD TO OFFER</div>
+            <div class="trade-pick-sub" id="trade-pick-sub">Select a card from your collection that meets the request</div>
+            <div class="trade-pick-grid" id="trade-pick-grid"></div>
+            <button id="trade-pick-cancel" onclick="closePickModal()">CANCEL</button>
         </div>
     </div>
 
@@ -378,8 +406,25 @@
             <div class="sv-grid" id="sv-grid"><div class="sv-empty">Loading...</div></div>
         </div>
     </div>
+
     <div id="card-zoom-overlay" onclick="this.style.display='none'">
         <div id="zoom-content"></div>
+    </div>
+
+    <!-- SHARE COLLECTION MODAL -->
+    <div id="share-modal" onclick="if(event.target===this)closeShareModal()">
+        <div class="share-box">
+            <div class="share-title">📤 SHARE YOUR COLLECTION</div>
+            <div class="share-sub">Anyone with this link can view your full card collection — no account needed.</div>
+            <div class="share-link-row">
+                <input type="text" id="share-link-input" class="share-link-input" readonly>
+                <button class="share-copy-btn" onclick="copyShareLink()">COPY</button>
+            </div>
+            <div id="share-copy-confirm" style="font-size:0.7rem;color:#3ecf8e;margin-top:8px;min-height:18px;letter-spacing:1px;font-weight:900;"></div>
+            <div class="share-preview-label">YOUR TOP 5 CARDS</div>
+            <div id="share-preview-cards" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:20px;transform:scale(0.75);transform-origin:top center;"></div>
+            <button class="btn" style="background:#1a1a28;max-width:200px;margin:0 auto;display:block;" onclick="closeShareModal()">CLOSE</button>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
