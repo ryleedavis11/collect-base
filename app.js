@@ -1328,12 +1328,7 @@
         }
 
         // ─── TRADE SYSTEM ────────────────────────────────────────────────────────
-        let _tradeConfirmMode = 'board';
-        function handleTradeConfirm() {
-            if (_tradeConfirmMode === 'incoming') { const trade = tradeState.pendingAcceptTrade; if (trade) executeSwap(trade); }
-            else { finaliseAccept(); }
-        }
-        let tradeState = { activeTab:'board', postSelectedCard:null, wantRarity:'any', wantMinRating:4, pendingAcceptTrade:null, pendingAcceptMyCard:null };
+        let tradeState = { activeTab:'board', postSelectedCard:null, wantRarity:'any', wantMinRating:4, pendingAcceptTrade:null };
         let tradePollInterval = null;
 
         function getWantDescription(trade) {
@@ -1385,7 +1380,7 @@
             let parts = [];
             if (rarity !== 'any') { const labels={common:'Basic',silver:'Rare',gold:'Ultra Rare',limited:'Limited',holo:'Secret Rare'}; parts.push(labels[rarity]||rarity); }
             if (minRat > 1) parts.push('Rating ' + minRat + '+');
-            if (nameVal) parts.push(`"${nameVal}"`);
+            if (nameVal) parts.push('"' + nameVal + '"');
             const summary = document.getElementById('want-summary');
             if (summary) summary.innerText = parts.length ? parts.join(' · ') : 'Any card will do';
             if (submitBtn) { const hasCard = !!tradeState.postSelectedCard; submitBtn.disabled = !hasCard; submitBtn.innerText = hasCard ? 'POST TRADE OFFER' : 'SELECT A CARD TO CONTINUE'; }
@@ -1401,103 +1396,288 @@
                 want_rarity: tradeState.wantRarity, want_min_rating: tradeState.wantMinRating,
                 want_name: wantName || null, status: 'open', created_at: new Date().toISOString()
             });
-            if (error) { showToast('❌ Error posting trade: ' + error.message); return; }
-            tradeState.postSelectedCard = null; showToast('✅ Trade offer posted!'); switchTradeTab('mine');
+            if (error) { showToast('Error posting trade: ' + error.message); return; }
+            tradeState.postSelectedCard = null; showToast('Trade offer posted!'); switchTradeTab('mine');
         }
 
+        // TRADE BOARD: Player 2 sees open offers
         async function loadTradeBoard() {
             const list = document.getElementById('trade-board-list');
-            list.innerHTML = '<div class="no-trades"><div class="nt-icon">⏳</div><p>LOADING...</p></div>';
+            list.innerHTML = '<div class="no-trades"><div class="nt-icon">loading</div><p>LOADING...</p></div>';
             const { data, error } = await _supabase.from('trades').select('*').eq('status','open').neq('sender_id', currentUser.id).order('created_at',{ascending:false}).limit(30);
-            if (error || !data || data.length === 0) { list.innerHTML = '<div class="no-trades"><div class="nt-icon">📋</div><p>NO OPEN OFFERS RIGHT NOW</p></div>'; return; }
-            list.innerHTML = data.map(t => `<div class="trade-card"><div class="trade-mini-card">${generateCardHtml(t.offered_card,false)}</div><div class="trade-arrow">→</div><div class="trade-want-info"><div class="trade-want-title">WANTS IN RETURN</div><div class="trade-want-val">${getWantDescription(t)}</div><div class="trade-want-sub">by ${t.sender_username||'ANONYMOUS'}</div></div><div class="trade-actions"><button class="trade-btn accept" onclick="openPickModal('${t.id}')">OFFER CARD</button></div></div>`).join('');
+            if (error || !data || data.length === 0) { list.innerHTML = '<div class="no-trades"><div class="nt-icon">no</div><p>NO OPEN OFFERS RIGHT NOW</p></div>'; return; }
+            list.innerHTML = data.map(t => `
+                <div class="trade-card">
+                    <div class="trade-mini-card">${generateCardHtml(t.offered_card,false)}</div>
+                    <div class="trade-arrow">to</div>
+                    <div class="trade-want-info">
+                        <div class="trade-want-title">WANTS IN RETURN</div>
+                        <div class="trade-want-val">${getWantDescription(t)}</div>
+                        <div class="trade-want-sub">by ${t.sender_username||'ANONYMOUS'}</div>
+                    </div>
+                    <div class="trade-actions">
+                        <button class="trade-btn accept" onclick="openPickModal('${t.id}')">OFFER A CARD</button>
+                    </div>
+                </div>`).join('');
         }
 
+        // MY TRADES: Player 1 sees their listings + any incoming offers to review
         async function loadMyTrades() {
             const list = document.getElementById('trade-mine-list');
             list.innerHTML = '<div class="no-trades"><div class="nt-icon">⏳</div><p>LOADING...</p></div>';
-            const { data } = await _supabase.from('trades').select('*').eq('sender_id', currentUser.id).in('status',['open','pending']).order('created_at',{ascending:false});
-            if (!data || data.length === 0) { list.innerHTML = '<div class="no-trades"><div class="nt-icon">📋</div><p>NO ACTIVE OFFERS</p></div>'; return; }
-            _myPendingTradeIds = data.filter(t => t.status === 'pending').map(t => t.id);
-            list.innerHTML = data.map(t => `<div class="trade-card mine"><div class="trade-mini-card">${generateCardHtml(t.offered_card,false)}</div><div class="trade-arrow">→</div><div class="trade-want-info"><div class="trade-want-title">YOU WANT</div><div class="trade-want-val">${getWantDescription(t)}</div><div class="trade-want-sub" style="color:${t.status==='pending'?'#ffd700':'#555566'}">${t.status.toUpperCase()}</div></div><div class="trade-actions"><button class="trade-btn cancel" onclick="cancelTrade('${t.id}')">CANCEL</button></div></div>`).join('');
+            const { data } = await _supabase.from('trades').select('*')
+                .eq('sender_id', currentUser.id)
+                .in('status', ['open','pending','accepted','declined'])
+                .order('created_at', {ascending: false});
+            if (!data || data.length === 0) {
+                list.innerHTML = '<div class="no-trades"><div class="nt-icon">📋</div><p>NO ACTIVE OFFERS</p></div>';
+                return;
+            }
+            list.innerHTML = data.map(t => {
+                const isPending = t.status === 'pending';
+                const isDeclined = t.status === 'declined';
+                const statusColor = isPending ? '#ffd700' : (isDeclined ? '#ef4444' : '#555566');
+                const statusLabel = isPending ? '⚡ OFFER RECEIVED — REVIEW NOW' : (isDeclined ? '❌ DECLINED' : t.status.toUpperCase());
+                let html = '<div class="trade-card mine' + (isPending ? ' has-offer' : '') + '">';
+                html += '<div class="trade-mini-card">' + generateCardHtml(t.offered_card, false) + '</div>';
+                html += '<div class="trade-arrow">→</div>';
+                html += '<div class="trade-want-info">';
+                html += '<div class="trade-want-title">YOUR OFFER</div>';
+                html += '<div class="trade-want-val">' + getWantDescription(t) + '</div>';
+                html += '<div class="trade-want-sub" style="color:' + statusColor + ';font-weight:900;">' + statusLabel + '</div>';
+                if (isPending && t.receiver_card) {
+                    html += '<div class="trade-offer-preview">They offer: <strong>' + t.receiver_card.name + '</strong> (' + getCardValue(t.receiver_card).toLocaleString() + ' 🪙)</div>';
+                }
+                html += '</div><div class="trade-actions">';
+                if (isPending) html += '<button class="trade-btn accept" onclick="showOwnerReviewModal(\'' + t.id + '\')">REVIEW OFFER</button>';
+                if (t.status === 'open') html += '<button class="trade-btn cancel" onclick="cancelTrade(\'' + t.id + '\')">CANCEL</button>';
+                if (isDeclined) html += '<button class="trade-btn cancel" onclick="cancelTrade(\'' + t.id + '\')">REMOVE</button>';
+                html += '</div></div>';
+                return html;
+            }).join('');
         }
-
+        // INCOMING: Player 2 sees status of offers they sent
         async function loadIncomingTrades() {
             const list = document.getElementById('trade-incoming-list');
-            list.innerHTML = '<div class="no-trades"><div class="nt-icon">⏳</div><p>LOADING...</p></div>';
-            const { data } = await _supabase.from('trades').select('*').eq('receiver_id', currentUser.id).eq('status','pending').order('created_at',{ascending:false});
+            list.innerHTML = '<div class="no-trades"><div class="nt-icon">loading</div><p>LOADING...</p></div>';
+            const { data } = await _supabase.from('trades').select('*')
+                .eq('receiver_id', currentUser.id)
+                .in('status',['pending','accepted','declined'])
+                .order('created_at',{ascending:false});
             const countEl = document.getElementById('incoming-count-tab');
-            if (countEl) countEl.innerText = data && data.length > 0 ? `(${data.length})` : '';
-            if (!data || data.length === 0) { list.innerHTML = '<div class="no-trades"><div class="nt-icon">📬</div><p>NO INCOMING TRADE REQUESTS</p></div>'; return; }
-            list.innerHTML = data.map(t => `<div class="trade-card incoming"><div class="trade-mini-card">${generateCardHtml(t.offered_card,false)}</div><div class="trade-arrow">⇄</div><div class="trade-mini-card">${generateCardHtml(t.receiver_card,false)}</div><div class="trade-want-info"><div class="trade-want-title">FROM ${t.sender_username||'ANONYMOUS'}</div><div class="trade-want-val">Trade Request</div></div><div class="trade-actions"><button class="trade-btn accept" onclick="showAcceptModal('${t.id}')">REVIEW</button><button class="trade-btn decline" onclick="declineTrade('${t.id}')">DECLINE</button></div></div>`).join('');
+            const acceptedCount = (data||[]).filter(t => t.status === 'accepted').length;
+            if (countEl) countEl.innerText = acceptedCount > 0 ? '(' + acceptedCount + ')' : '';
+            if (!data || data.length === 0) { list.innerHTML = '<div class="no-trades"><div class="nt-icon">no</div><p>NO OFFERS SENT YET</p></div>'; return; }
+            list.innerHTML = data.map(t => {
+                const isAccepted = t.status === 'accepted';
+                const isDeclined = t.status === 'declined';
+                let statusHtml = '';
+                if (isAccepted) statusHtml = '<div class="trade-status-accepted">ACCEPTED - CLICK COMPLETE TRADE TO FINISH</div>';
+                else if (isDeclined) statusHtml = '<div class="trade-status-declined">DECLINED BY ' + (t.sender_username||'TRADER').toUpperCase() + '</div>';
+                else statusHtml = '<div class="trade-status-pending">WAITING FOR ' + (t.sender_username||'TRADER').toUpperCase() + ' TO REVIEW</div>';
+                return '<div class="trade-card incoming ' + (isAccepted ? 'is-accepted' : (isDeclined ? 'is-declined' : '')) + '">' +
+                    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
+                    '<div class="trade-mini-card">' + generateCardHtml(t.offered_card,false) + '</div>' +
+                    '<div class="trade-arrow">vs</div>' +
+                    '<div class="trade-mini-card">' + (t.receiver_card ? generateCardHtml(t.receiver_card,false) : '') + '</div>' +
+                    '</div>' +
+                    '<div class="trade-want-info">' +
+                    '<div class="trade-want-title">OFFER TO ' + (t.sender_username||'TRADER').toUpperCase() + '</div>' +
+                    statusHtml + '</div>' +
+                    '<div class="trade-actions">' +
+                    (isAccepted ? '<button class="trade-btn accept" onclick="completeAcceptedTrade(\'' + t.id + '\')">COMPLETE TRADE</button>' : '') +
+                    (!isAccepted ? '<button class="trade-btn cancel" onclick="withdrawOffer(\'' + t.id + '\')">WITHDRAW</button>' : '') +
+                    '</div></div>';
+            }).join('');
         }
 
+        // PICK MODAL: Player 2 selects card + confirm button
         let _currentPickTradeId = null;
+        let _pickedCardForTrade = null;
+
         function openPickModal(tradeId) {
             _currentPickTradeId = tradeId;
+            _pickedCardForTrade = null;
             const eligible = mySquad.filter(c => !_lockedCardIds.has(c.instanceId));
             const grid = document.getElementById('trade-pick-grid');
             if (eligible.length === 0) { showToast('No eligible cards to offer.'); return; }
-            grid.innerHTML = eligible.sort((a,b)=>getCardValue(b)-getCardValue(a)).map(p => `<div class="pick-card-wrap" onclick="selectPickCard('${p.instanceId}',this)">${generateCardHtml(p,false)}</div>`).join('');
+            grid.innerHTML = eligible.sort((a,b)=>getCardValue(b)-getCardValue(a)).map(p =>
+                '<div class="pick-card-wrap" onclick="selectPickCard(\'" + p.instanceId + "\',this)">' + generateCardHtml(p,false) + '</div>'
+            ).join('');
+            const btn = document.getElementById('trade-pick-confirm');
+            btn.disabled = true; btn.innerText = 'SELECT A CARD FIRST';
             document.getElementById('trade-pick-modal').style.display = 'flex';
         }
 
-        let _pickedCardForTrade = null;
         function selectPickCard(id, wrap) {
             _pickedCardForTrade = mySquad.find(p => p.instanceId === id);
             document.querySelectorAll('.trade-pick-grid .pick-card-wrap').forEach(w => w.classList.remove('selected'));
             wrap.classList.add('selected');
+            const btn = document.getElementById('trade-pick-confirm');
+            btn.disabled = false;
+            btn.innerText = 'OFFER ' + (_pickedCardForTrade ? _pickedCardForTrade.name.toUpperCase() : 'THIS CARD');
         }
 
-        async function finaliseAccept() {
+        async function confirmPickedCard() {
             if (!_pickedCardForTrade || !_currentPickTradeId) return;
+            const btn = document.getElementById('trade-pick-confirm');
+            btn.disabled = true; btn.innerText = 'SENDING...';
             const { error } = await _supabase.from('trades').update({
                 receiver_id: currentUser.id,
                 receiver_username: currentUser.user_metadata?.username || currentUser.email.split('@')[0],
-                receiver_card: _pickedCardForTrade, status: 'pending'
-            }).eq('id', _currentPickTradeId);
-            if (error) { showToast('❌ Error: ' + error.message); return; }
-            closePickModal(); showToast('✅ Offer sent! Waiting for confirmation.'); await updateLockedCards();
+                receiver_card: _pickedCardForTrade,
+                status: 'pending'
+            }).eq('id', _currentPickTradeId).eq('status', 'open');
+            if (error) { showToast('Error: ' + error.message); btn.disabled = false; btn.innerText = 'TRY AGAIN'; return; }
+            closePickModal();
+            showToast('Offer sent! Waiting for the other trainer to review.');
+            await updateLockedCards();
+            switchTradeTab('incoming');
         }
 
-        function closePickModal() { document.getElementById('trade-pick-modal').style.display = 'none'; _pickedCardForTrade = null; _currentPickTradeId = null; }
+        function closePickModal() {
+            document.getElementById('trade-pick-modal').style.display = 'none';
+            _pickedCardForTrade = null; _currentPickTradeId = null;
+        }
 
-        async function showAcceptModal(tradeId) {
+        // OWNER REVIEW MODAL: Player 1 reviews the offer they received
+        async function showOwnerReviewModal(tradeId) {
             const { data: t } = await _supabase.from('trades').select('*').eq('id', tradeId).single();
-            if (!t) return;
-            tradeState.pendingAcceptTrade = t; _tradeConfirmMode = 'incoming';
-            document.getElementById('tam-from').innerText = `From: ${t.sender_username||'ANONYMOUS'}`;
-            document.getElementById('tam-recv-card').innerHTML = generateCardHtml(t.offered_card, false);
-            document.getElementById('tam-send-card').innerHTML = generateCardHtml(t.receiver_card, false);
-            document.getElementById('trade-accept-modal').style.display = 'flex';
+            if (!t || !t.receiver_card) return;
+            tradeState.pendingAcceptTrade = t;
+            document.getElementById('orv-from').innerText = 'Offer from: ' + (t.receiver_username||'ANONYMOUS');
+            document.getElementById('orv-their-card').innerHTML = generateCardHtml(t.receiver_card, false);
+            document.getElementById('orv-your-card').innerHTML = generateCardHtml(t.offered_card, false);
+            document.getElementById('owner-review-modal').style.display = 'flex';
         }
 
-        function closeTAModal() { document.getElementById('trade-accept-modal').style.display = 'none'; tradeState.pendingAcceptTrade = null; }
+        function closeOwnerReviewModal() {
+            document.getElementById('owner-review-modal').style.display = 'none';
+            tradeState.pendingAcceptTrade = null;
+        }
 
-        async function executeSwap(trade) {
-            mySquad = mySquad.filter(c => c.instanceId !== trade.receiver_card.instanceId);
-            const newCard = { ...trade.offered_card, instanceId: 'inst_' + Date.now(), collectedDate: new Date().toLocaleDateString() };
+        async function ownerAcceptTrade() {
+            const t = tradeState.pendingAcceptTrade;
+            if (!t) return;
+            await _supabase.from('trades').update({ status: 'accepted' }).eq('id', t.id);
+            closeOwnerReviewModal();
+            showToast('Trade accepted! The other trainer can now complete it.');
+            loadMyTrades();
+        }
+
+        async function ownerDeclineTrade() {
+            const t = tradeState.pendingAcceptTrade;
+            if (!t) return;
+            await _supabase.from('trades').update({ status: 'declined' }).eq('id', t.id);
+            closeOwnerReviewModal();
+            showToast('Trade declined.');
+            loadMyTrades();
+        }
+
+        // COMPLETE TRADE: Player 2 finalizes after Player 1 accepted
+        async function completeAcceptedTrade(tradeId) {
+            const { data: t } = await _supabase.from('trades').select('*').eq('id', tradeId).single();
+            if (!t || t.status !== 'accepted') { showToast('Trade is no longer available.'); loadIncomingTrades(); return; }
+            mySquad = mySquad.filter(c => c.instanceId !== t.receiver_card.instanceId);
+            const newCard = { ...t.offered_card, instanceId: 'inst_' + Date.now(), collectedDate: new Date().toLocaleDateString() };
             mySquad.push(newCard);
-            await _supabase.from('trades').update({ status: 'completed' }).eq('id', trade.id);
-            closeTAModal(); renderSquad(); updateUI(); await saveGame();
-            showToast('🔄 Trade complete! You received ' + trade.offered_card.name);
+            await _supabase.from('trades').update({ status: 'completed' }).eq('id', t.id);
+            renderSquad(); updateUI(); await saveGame();
+            showToast('Trade complete! You received ' + t.offered_card.name + '!');
             logActivity('completed_exchange', newCard);
             addXP(15);
+            loadIncomingTrades();
         }
 
-        async function cancelTrade(id) { await _supabase.from('trades').update({ status: 'cancelled' }).eq('id', id); loadMyTrades(); showToast('Trade cancelled.'); }
-        async function declineTrade(id) { await _supabase.from('trades').update({ status: 'open', receiver_id: null, receiver_card: null }).eq('id', id); loadIncomingTrades(); showToast('Trade declined.'); }
+        // WITHDRAW: Player 2 cancels their offer
+        async function withdrawOffer(tradeId) {
+            if (!confirm('Withdraw this offer?')) return;
+            await _supabase.from('trades').update({
+                status: 'open', receiver_id: null, receiver_username: null, receiver_card: null
+            }).eq('id', tradeId);
+            await updateLockedCards();
+            loadIncomingTrades();
+            showToast('Offer withdrawn.');
+        }
 
+        async function cancelTrade(id) {
+            if (!confirm('Cancel this trade listing?')) return;
+            await _supabase.from('trades').update({ status: 'cancelled' }).eq('id', id);
+            loadMyTrades(); showToast('Trade cancelled.');
+        }
+
+        // NOTIFICATIONS
+        let _notifications = [];
+
+        function addNotification(msg) {
+            _notifications.unshift({ msg, time: new Date(), read: false });
+            updateNotifBadge();
+        }
+
+        function updateNotifBadge() {
+            const badge = document.getElementById('notif-badge');
+            const unread = _notifications.filter(n => !n.read).length;
+            if (badge) { badge.style.display = unread > 0 ? 'flex' : 'none'; badge.innerText = unread; }
+        }
+
+        function toggleNotifPanel() {
+            const panel = document.getElementById('notif-panel');
+            const isOpen = panel.style.display === 'block';
+            if (isOpen) {
+                panel.style.display = 'none';
+            } else {
+                panel.style.display = 'block';
+                _notifications.forEach(n => n.read = true);
+                updateNotifBadge();
+                renderNotifPanel();
+            }
+        }
+
+        function closeNotifPanel() { document.getElementById('notif-panel').style.display = 'none'; }
+
+        function renderNotifPanel() {
+            const list = document.getElementById('notif-list');
+            if (_notifications.length === 0) { list.innerHTML = '<div class="notif-empty">No notifications yet</div>'; return; }
+            list.innerHTML = _notifications.slice(0, 20).map(n =>
+                '<div class="notif-item"><div class="notif-msg">' + n.msg + '</div><div class="notif-time">' + timeAgo(n.time) + '</div></div>'
+            ).join('');
+        }
+
+        // TRADE POLL
         function startTradePoll() {
             stopTradePoll();
             tradePollInterval = setInterval(async () => {
                 if (!currentUser) return;
-                const { data } = await _supabase.from('trades').select('id').eq('receiver_id', currentUser.id).eq('status','pending').limit(1);
+                const { data: myPending } = await _supabase.from('trades')
+                    .select('id, receiver_username, receiver_card')
+                    .eq('sender_id', currentUser.id).eq('status','pending').limit(5);
+                const { data: myAccepted } = await _supabase.from('trades')
+                    .select('id').eq('receiver_id', currentUser.id).eq('status','accepted').limit(5);
+                const totalUnread = (myPending?.length||0) + (myAccepted?.length||0);
                 const badge = document.getElementById('trade-badge');
                 const countEl = document.getElementById('incoming-count-tab');
-                if (data && data.length > 0) { if (badge) badge.style.display = 'flex'; if (countEl) countEl.innerText = `(${data.length})`; }
-                else { if (badge) badge.style.display = 'none'; if (countEl) countEl.innerText = ''; }
-            }, 15000);
+                if (totalUnread > 0) {
+                    if (badge) badge.style.display = 'flex';
+                    if (countEl) countEl.innerText = '(' + totalUnread + ')';
+                    (myPending||[]).forEach(t => {
+                        const key = 'notif_' + t.id;
+                        if (!sessionStorage.getItem(key)) {
+                            sessionStorage.setItem(key, '1');
+                            addNotification((t.receiver_username||'A trainer') + ' offered you a card! Go to My Offers to review it.');
+                        }
+                    });
+                    (myAccepted||[]).forEach(t => {
+                        const key = 'notif_acc_' + t.id;
+                        if (!sessionStorage.getItem(key)) {
+                            sessionStorage.setItem(key, '1');
+                            addNotification('Your trade offer was accepted! Go to Incoming Offers to complete it.');
+                        }
+                    });
+                } else {
+                    if (badge) badge.style.display = 'none';
+                    if (countEl) countEl.innerText = '';
+                }
+            }, 10000);
         }
         function stopTradePoll() { if (tradePollInterval) { clearInterval(tradePollInterval); tradePollInterval = null; } }
 

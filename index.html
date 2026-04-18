@@ -99,7 +99,15 @@
             </button>
             <button id="logout-btn" onclick="handleLogout()">LOGOUT</button>
         </div>
-        <div class="nav-metric nav-right">
+        <div class="nav-metric nav-right" style="display:flex;align-items:center;gap:10px;justify-content:flex-end;">
+            <div class="notif-bell-wrap" onclick="toggleNotifPanel()">
+                <span class="notif-bell">🔔</span>
+                <span id="notif-badge" class="notif-badge" style="display:none;">0</span>
+                <div id="notif-panel" class="notif-panel" style="display:none;" onclick="event.stopPropagation()">
+                    <div class="notif-panel-header">NOTIFICATIONS <button class="notif-close" onclick="closeNotifPanel()">✕</button></div>
+                    <div id="notif-list"></div>
+                </div>
+            </div>
             <span id="nav-level-badge" class="nav-level-badge"></span>
             COINS: <span class="bal-text">0</span> 🪙
         </div>
@@ -342,7 +350,7 @@
         <div class="trade-tabs">
             <button class="trade-tab active" onclick="switchTradeTab('board')">OPEN OFFERS</button>
             <button class="trade-tab" onclick="switchTradeTab('mine')">MY OFFERS</button>
-            <button class="trade-tab" onclick="switchTradeTab('incoming')">INCOMING <span id="incoming-count-tab"></span></button>
+            <button class="trade-tab" onclick="switchTradeTab('incoming')">MY SENT OFFERS <span id="incoming-count-tab"></span></button>
             <button class="trade-tab" onclick="switchTradeTab('post')">+ POST OFFER</button>
         </div>
         <div class="trade-tab-panel active" id="trade-panel-board"><div class="trade-board" id="trade-board-list"><div class="no-trades"><div class="nt-icon">📋</div><p>LOADING OFFERS...</p></div></div></div>
@@ -414,9 +422,36 @@
     <div id="trade-pick-modal">
         <div class="trade-pick-box">
             <div class="trade-pick-title">CHOOSE A CARD TO OFFER</div>
-            <div class="trade-pick-sub" id="trade-pick-sub">Select a card from your collection</div>
+            <div class="trade-pick-sub" id="trade-pick-sub">Select a card then confirm your offer</div>
             <div class="trade-pick-grid" id="trade-pick-grid"></div>
-            <button id="trade-pick-cancel" onclick="closePickModal()">CANCEL</button>
+            <div style="display:flex;gap:12px;margin-top:16px;justify-content:center;">
+                <button id="trade-pick-confirm" class="trade-pick-confirm-btn" onclick="confirmPickedCard()" disabled>SELECT A CARD FIRST</button>
+                <button id="trade-pick-cancel" onclick="closePickModal()">CANCEL</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OWNER REVIEW MODAL: Player 1 reviews incoming offer -->
+    <div id="owner-review-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:3200;align-items:center;justify-content:center;">
+        <div class="trade-accept-box">
+            <div class="trade-accept-title">REVIEW TRADE OFFER</div>
+            <div class="trade-accept-from" id="orv-from"></div>
+            <div class="trade-swap-row">
+                <div>
+                    <div class="trade-swap-label">THEY OFFER YOU</div>
+                    <div id="orv-their-card"></div>
+                </div>
+                <div class="trade-swap-arrow">⇄</div>
+                <div>
+                    <div class="trade-swap-label">YOUR CARD</div>
+                    <div id="orv-your-card"></div>
+                </div>
+            </div>
+            <div class="trade-accept-btns">
+                <button id="orv-accept-btn" onclick="ownerAcceptTrade()" style="background:#3ecf8e;color:black;padding:12px 32px;border:none;border-radius:12px;font-weight:900;font-size:0.9rem;cursor:pointer;text-transform:uppercase;font-family:var(--font-body);">ACCEPT TRADE</button>
+                <button id="orv-decline-btn" onclick="ownerDeclineTrade()" style="background:#2a1010;color:#ef4444;border:1px solid rgba(239,68,68,0.3);padding:12px 32px;border-radius:12px;font-weight:900;font-size:0.9rem;cursor:pointer;text-transform:uppercase;font-family:var(--font-body);">DECLINE</button>
+                <button onclick="closeOwnerReviewModal()" style="background:#1a1a28;color:#888;border:1px solid #2a2a3a;padding:12px 24px;border-radius:12px;font-weight:900;font-size:0.9rem;cursor:pointer;text-transform:uppercase;font-family:var(--font-body);">CANCEL</button>
+            </div>
         </div>
     </div>
 
