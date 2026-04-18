@@ -83,7 +83,7 @@
                 <div class="nav-dropdown-menu" id="nav-squad-menu">
                     <button onclick="showView('team'); closeNavDropdown()">My Collection (<span class="team-count-menu">0</span>)</button>
                     <div class="menu-divider"></div>
-                    <button onclick="showView('exchanges'); closeNavDropdown()">Exchanges</button>
+                    <button onclick="showView('exchanges'); closeNavDropdown()" style="position:relative;">Exchanges <span id="exchange-badge" class="exchange-badge" style="display:none;">0</span></button>
                     <div class="menu-divider"></div>
                     <button onclick="openShareModal(); closeNavDropdown()">📤 Share My Collection</button>
                 </div>
@@ -287,6 +287,9 @@
                     </div>
                 </div>
                 <button class="arena-enter-btn" onclick="startArenaBattle()">ENTER BATTLE</button>
+                <button class="arena-enter-btn arena-high-stakes-btn" onclick="startArenaBattle(true)" style="margin-top:10px;background:linear-gradient(135deg,#7c3aed,#4f1d96);font-size:1.1rem;">
+                    ⚡ HIGH STAKES — 5,000 🪙
+                </button>
             </div>
         </div>
         <div id="arena-rolling" class="arena-phase">
@@ -309,7 +312,7 @@
                     <div class="arena-card-col"><div class="arena-slot-label">BOT</div><div id="arena-card-bot"></div><div class="arena-val" id="arena-val-bot">—</div></div>
                 </div>
                 <div class="arena-result-msg" id="arena-result-msg"></div>
-                <button class="btn btn-primary" onclick="startArenaBattle()" style="margin-top:20px;max-width:320px;">BATTLE AGAIN <span style="opacity:0.5;font-size:0.7rem;">↵</span></button>
+                <button class="btn btn-primary" id="battle-again-btn" onclick="startArenaBattle(window._lastBattleHighStakes)" style="margin-top:20px;max-width:320px;">BATTLE AGAIN <span style="opacity:0.5;font-size:0.7rem;">↵</span></button>
                 <button class="btn" style="background:#1a1a28;max-width:320px;" onclick="arenaToLobby()">BACK TO LOBBY</button>
             </div>
         </div>

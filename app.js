@@ -1,5 +1,5 @@
 // ─── CONSTANTS ───────────────────────────────────────────────────────────
-        const SELL_RATE = 0.65;
+        const SELL_RATE = 0.50;
         const HOLO_MULTIPLIER = 3;
         const OFFICE_HOURLY_RATE = 0.01;
         const OFFICE_CAP_HOURS = 6;
@@ -32,6 +32,7 @@
         let _myPendingTradeIds = [];
         let _activeTypeFilter = 'all';
         let _stdPackData = null;
+        let _eltPackData = null;
         let _featuredCardConfig = null;
         let _trainerLevel = 1;
         let _trainerXP = 0;
@@ -140,15 +141,15 @@
                 currentUser = sessionData.session?.user || data.user;
                 const { error: dbError } = await _supabase.from('user_saves').upsert({
                     user_id: currentUser.id, email: currentUser.email, username,
-                    balance: 5000, squad: [], club_value: 0,
+                    balance: 1500, squad: [], club_value: 0,
                     last_collected: new Date().toISOString(),
                     login_streak: 1, last_login_date: new Date().toISOString(),
                     xp: 0, level: 1, trainer_title: 'ROOKIE',
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'user_id' });
                 if (dbError) { hideLoading(); setAuthError("Database error: " + dbError.message); return; }
-                balance = 5000; mySquad = []; lastCollected = new Date().toISOString();
-                hideLoading(); enterGame();
+                balance = 1500; mySquad = []; lastCollected = new Date().toISOString();
+                hideLoading(); enterGame(true);
             }
         }
 
@@ -180,14 +181,14 @@
         }
 
         // ─── ENTER GAME ──────────────────────────────────────────────────────────
-        function enterGame() {
+        function enterGame(isNew = false) {
             hideLoading();
             document.getElementById('view-landing').style.display = 'none';
             document.getElementById('view-login').classList.remove('active');
             document.getElementById('main-nav').style.display = 'flex';
             setupPresence();
             showView('home');
-            updateWelcomeMsg();
+            updateWelcomeMsg(isNew);
             initMarquee();
             startOfficeTicker();
             startTradePoll();
@@ -214,6 +215,8 @@
         async function prefetchStdPack() {
             const { data } = await _supabase.from('packs').select('*').eq('tier', 'std').single();
             if (data) _stdPackData = data;
+            const { data: eltData } = await _supabase.from('packs').select('*').eq('tier', 'elt').single();
+            if (eltData) _eltPackData = eltData;
         }
 
         async function loadTopPullsToday() {
@@ -244,9 +247,10 @@
             ).join('');
         }
 
-        function updateWelcomeMsg() {
+        function updateWelcomeMsg(isNew = false) {
             const username = currentUser?.user_metadata?.username || currentUser?.email || 'TRAINER';
-            document.getElementById('welcome-msg').innerText = `WELCOME BACK, ${username.toUpperCase()}`;
+            const greeting = isNew ? 'WELCOME TO COLLECTION BASE,' : 'WELCOME BACK,';
+            document.getElementById('welcome-msg').innerText = `${greeting} ${username.toUpperCase()}`;
         }
 
         // ─── CLOUD SAVE ──────────────────────────────────────────────────────────
@@ -641,11 +645,12 @@
         }
 
         async function loadStorePrices() {
-            const { data: packs, error } = await _supabase.from('packs').select('tier, cost, in_store');
+            const { data: packs, error } = await _supabase.from('packs').select('tier, cost, in_store, image_url');
             if (error || !packs) return;
             const names = { std:'Standard', pre:'Premium', elt:'Elite', promo:'1st Edition' };
             ['std','pre','elt','promo'].forEach(tier => { const btn = document.getElementById(`btn-${tier}`); if (btn) btn.style.display = 'none'; });
             packs.forEach(pack => {
+                if (pack.image_url) PACK_IMAGES[pack.tier] = pack.image_url;
                 const btn = document.getElementById(`btn-${pack.tier}`);
                 if (btn && names[pack.tier]) {
                     if (pack.in_store === false) { btn.style.display = 'none'; }
@@ -1127,7 +1132,7 @@
                 const isSelected = multiSelectMode && multiSelectIds.has(p.instanceId);
                 return `<div class="squad-card-wrap ${isSelected ? 'ms-selected' : ''}" onclick="squadCardClick(event, '${p.instanceId}')">${generateCardHtml(p, !multiSelectMode)}</div>`;
             }).join('');
-            updateUI(); updatePlaytimeLabel();
+            updateUI(); updatePlaytimeLabel(); updateExchangeBadge();
         }
 
         // ─── CATALOG ─────────────────────────────────────────────────────────────
@@ -1259,19 +1264,19 @@
                 btn.className = 'daily-collect-btn done'; btn.innerText = 'COLLECTED';
             } else {
                 banner.className = 'daily-collect-banner ready';
-                sub.innerText = 'Claim your free daily coins!';
+                sub.innerText = `Claim your free ${Math.max(150, _trainerLevel * 150).toLocaleString()} 🪙 daily reward!`;
                 btn.className = 'daily-collect-btn ready'; btn.innerText = 'COLLECT';
             }
         }
 
         async function claimDailyReward() {
-            const DAILY_REWARD = 500;
+            const DAILY_REWARD = Math.max(150, _trainerLevel * 150);
             const { data } = await _supabase.from('user_saves').select('last_daily_collect').eq('user_id', currentUser.id).single();
             if (data?.last_daily_collect && new Date(data.last_daily_collect).toDateString() === new Date().toDateString()) { showToast('Already claimed today!'); return; }
             balance += DAILY_REWARD;
             await _supabase.from('user_saves').upsert({ user_id: currentUser.id, last_daily_collect: new Date().toISOString() }, { onConflict: 'user_id' });
             updateUI(); initDailyReward();
-            showToast(`🎁 Daily reward claimed! +${DAILY_REWARD.toLocaleString()} 🪙`);
+            showToast(`🎁 Daily reward claimed! +${DAILY_REWARD.toLocaleString()} 🪙 (Level ${_trainerLevel} bonus)`);
         }
 
         // ─── SHARE COLLECTION ─────────────────────────────────────────────────────
@@ -1504,11 +1509,11 @@
         function arenaToLobby() { document.querySelectorAll('.arena-phase').forEach(p => p.classList.remove('active-phase')); document.getElementById('arena-lobby').classList.add('active-phase'); }
         function arenaShowPhase(id) { document.querySelectorAll('.arena-phase').forEach(p => p.classList.remove('active-phase')); document.getElementById(id).classList.add('active-phase'); }
 
-        async function getArenaCard() {
-            const pack = _stdPackData;
+        async function getArenaCard(highStakes = false) {
+            const pack = highStakes ? _eltPackData : _stdPackData;
             if (!pack || !pack.odds_config || pack.odds_config.length === 0) {
-                const { data } = await _supabase.from('collection').select('*').gte('rating',4).lte('rating',10).neq('rarity','Limited').neq('rarity','1st edition').limit(50);
-                if (!data || data.length === 0) return null;
+                const minRating = highStakes ? 6 : 4;
+                const { data } = await _supabase.from('collection').select('*').gte('rating', minRating).lte('rating', 10).neq('rarity','Limited').neq('rarity','1st edition').eq('in_packs', true).limit(50);
                 return data[Math.floor(Math.random() * data.length)];
             }
             const roll = Math.random() * 100;
@@ -1517,7 +1522,7 @@
             for (const r of rules) { cumulative += r.chance; if (roll < cumulative) { rule = r; break; } }
             const { data } = await _supabase.from('collection').select('*')
                 .gte('rating', rule.min).lte('rating', rule.max)
-                .neq('rarity','Limited').neq('rarity','1st edition').eq('in_packs', true);
+                .neq('rarity', 'Limited').neq('rarity', '1st edition').eq('in_packs', true);
             if (!data || data.length === 0) return null;
             return data[Math.floor(Math.random() * data.length)];
         }
@@ -1528,8 +1533,10 @@
             return val;
         }
 
-        async function startArenaBattle() {
-            const ENTRY = 500, WIN_BONUS = 500;
+        async function startArenaBattle(highStakes = false) {
+            window._lastBattleHighStakes = highStakes;
+            const ENTRY = highStakes ? 5000 : 500;
+            const WIN_BONUS = highStakes ? 5000 : 500;
             if (balance < ENTRY) { showToast(`⚠ You need ${ENTRY.toLocaleString()} 🪙 to enter.`); return; }
             if (!_stdPackData) await prefetchStdPack();
             balance -= ENTRY; updateUI(); arenaShowPhase('arena-rolling');
@@ -1537,7 +1544,7 @@
             let li = 0;
             const lblEl = document.getElementById('arena-rolling-lbl');
             const lblInterval = setInterval(() => { lblEl.innerText = labels[li++ % labels.length]; }, 600);
-            const [pCard, bCard] = await Promise.all([getArenaCard(), getArenaCard(), new Promise(r => setTimeout(r, 1600))]);
+            const [pCard, bCard] = await Promise.all([getArenaCard(highStakes), getArenaCard(highStakes), new Promise(r => setTimeout(r, 1600))]);
             clearInterval(lblInterval);
             if (!pCard || !bCard) { balance += ENTRY; updateUI(); arenaToLobby(); showToast('❌ Connection error. Entry fee refunded.'); return; }
             pCard.instanceId = 'inst_' + Date.now(); pCard.collectedDate = new Date().toLocaleDateString();
@@ -1578,7 +1585,7 @@
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
                 const revealPhase = document.getElementById('arena-reveal');
-                if (revealPhase && revealPhase.classList.contains('active-phase')) { e.preventDefault(); startArenaBattle(); }
+                if (revealPhase && revealPhase.classList.contains('active-phase')) { e.preventDefault(); startArenaBattle(window._lastBattleHighStakes); }
             }
         });
 
@@ -1626,7 +1633,17 @@
 
         async function loadExchangeState() {
             const { data } = await _supabase.from('exchanges').select('*').order('order', { ascending: true });
-            _exchangeConfig = data || []; return _exchangeConfig;
+            _exchangeConfig = data || [];
+            updateExchangeBadge();
+            return _exchangeConfig;
+        }
+
+        function updateExchangeBadge() {
+            const badge = document.getElementById('exchange-badge');
+            if (!badge) return;
+            const available = _exchangeConfig.filter(exc => !completedExchanges.includes(exc.id) && checkExchangeRequirements(exc));
+            badge.style.display = available.length > 0 ? 'flex' : 'none';
+            badge.innerText = available.length;
         }
 
         function renderExchanges() {

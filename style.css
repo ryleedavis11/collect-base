@@ -463,7 +463,7 @@ nav button.active { color: var(--accent); border-bottom: 2px solid var(--accent)
     filter: blur(25px); animation: infernoSpin 3s linear infinite; z-index: 1; opacity: 0.9;
 }
 @keyframes infernoSpin { 0%{transform:rotate(0deg) scale(1);}50%{transform:rotate(180deg) scale(1.1);}100%{transform:rotate(360deg) scale(1);} }
-.sealed-player-render { width: 88%; height: 78%; object-fit: contain; z-index: 4; filter: drop-shadow(0 0 16px rgba(0,0,0,0.8)); pointer-events: none; }
+.sealed-player-render { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 4; pointer-events: none; border-radius: 10px; }
 .pack-label { position: absolute; top: 14px; font-family: var(--font-display); font-size: 1.3rem; letter-spacing: 3px; z-index: 6; color: rgba(255,255,255,0.12); -webkit-text-stroke: 1px rgba(255,255,255,0.35); }
 .foil-shine { position: absolute; inset: 0; background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.06) 50%, transparent 60%); animation: shine 4s infinite; z-index: 5; pointer-events: none; }
 @keyframes shine { from { transform: translateX(-100%) translateY(-100%); } to { transform: translateX(100%) translateY(100%); } }
@@ -871,3 +871,19 @@ nav button.active { color: var(--accent); border-bottom: 2px solid var(--accent)
 .featured-banner-sub { font-size:0.65rem; color:var(--muted); margin-top:2px; }
 .featured-card-wrap { position:relative; }
 .featured-star-badge { position:absolute; top:-10px; left:50%; transform:translateX(-50%); background:var(--gold); color:#111; font-size:0.6rem; font-weight:900; padding:2px 8px; border-radius:20px; white-space:nowrap; z-index:50; letter-spacing:1px; }
+/* ─── EXCHANGE BADGE ─────────────────────────────────────────────────── */
+.exchange-badge {
+    position: absolute; top: -6px; right: -14px;
+    background: #f97316; color: black; border-radius: 50%;
+    width: 16px; height: 16px; font-size: 0.55rem; font-weight: 900;
+    align-items: center; justify-content: center;
+    animation: pulseBadge 1.5s infinite;
+}
+
+/* ─── HIGH STAKES ARENA BUTTON ───────────────────────────────────────── */
+.arena-high-stakes-btn {
+    background: linear-gradient(135deg, #7c3aed, #4f1d96) !important;
+    box-shadow: 0 0 20px rgba(124,58,237,0.4);
+    letter-spacing: 2px;
+}
+.arena-high-stakes-btn:hover { filter: brightness(1.15); box-shadow: 0 0 32px rgba(124,58,237,0.6) !important; }
