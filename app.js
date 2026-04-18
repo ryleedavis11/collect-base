@@ -31,6 +31,7 @@
         let _lastSaveCheckDate = null;
         let _myPendingTradeIds = [];
         let _activeTypeFilter = 'all';
+        let _activeSortMode = 'value_desc';
         let _stdPackData = null;
         let _eltPackData = null;
         let _featuredCardConfig = null;
@@ -1118,12 +1119,36 @@
             renderSquad();
         }
 
+        function setSortMode(mode) {
+            _activeSortMode = mode;
+            renderSquad();
+        }
+
+        function sortDisplayList(list) {
+            switch (_activeSortMode) {
+                case 'value_asc':  return list.sort((a, b) => getCardValue(a) - getCardValue(b));
+                case 'recent':     return list.sort((a, b) => {
+                    const da = a.collectedDate ? new Date(a.collectedDate) : new Date(0);
+                    const db = b.collectedDate ? new Date(b.collectedDate) : new Date(0);
+                    return db - da;
+                });
+                case 'oldest':     return list.sort((a, b) => {
+                    const da = a.collectedDate ? new Date(a.collectedDate) : new Date(0);
+                    const db = b.collectedDate ? new Date(b.collectedDate) : new Date(0);
+                    return da - db;
+                });
+                case 'az':         return list.sort((a, b) => (a.name||'').localeCompare(b.name||''));
+                case 'za':         return list.sort((a, b) => (b.name||'').localeCompare(a.name||''));
+                default:           return list.sort((a, b) => getCardValue(b) - getCardValue(a)); // value_desc
+            }
+        }
+
         function renderSquad() {
             const grid = document.getElementById('squad-grid');
             let displayList = [...mySquad];
             if (_activeTypeFilter === 'favorites') displayList = displayList.filter(p => p.isFavorite);
             else if (_activeTypeFilter !== 'all') displayList = displayList.filter(p => getCardType(p) === _activeTypeFilter);
-            displayList.sort((a, b) => getCardValue(b) - getCardValue(a));
+            sortDisplayList(displayList);
             if (displayList.length === 0) {
                 grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#333;padding:60px;font-size:0.85rem;letter-spacing:1px;">NO CARDS MATCH THIS FILTER</div>';
                 updateUI(); return;

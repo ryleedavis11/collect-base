@@ -251,6 +251,8 @@ nav button.active { color: var(--accent); border-bottom: 2px solid var(--accent)
 .view.active { display: block; }
 #view-home.active      { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 #view-slots.active     { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; text-align: center; padding-top: 30px; }
+#view-team.active      { display: flex; flex-direction: column; align-items: center; }
+#view-shop.active      { display: flex; flex-direction: column; align-items: center; }
 #view-office.active    { display: flex; flex-direction: column; align-items: center; }
 #view-arena.active     { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 20px; }
 #view-trade.active     { display: flex; flex-direction: column; align-items: center; }
@@ -937,3 +939,22 @@ nav button.active { color: var(--accent); border-bottom: 2px solid var(--accent)
 .trade-card.has-offer { border-color:rgba(255,203,5,0.6) !important; animation:incomingPulse 2s infinite; }
 .trade-card.is-accepted { border-color:rgba(62,207,142,0.5) !important; }
 .trade-card.is-declined { border-color:rgba(239,68,68,0.3) !important; opacity:0.7; }
+/* ─── COLLECTION SORT BAR ────────────────────────────────────────────── */
+.sort-bar {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 16px; width: 100%; max-width: 1200px;
+    padding: 0 40px;
+}
+.sort-label {
+    font-size: 0.62rem; color: var(--muted); letter-spacing: 2px;
+    font-weight: 900; text-transform: uppercase; white-space: nowrap;
+}
+.sort-select {
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text); border-radius: 10px; padding: 8px 14px;
+    font-family: var(--font-body); font-size: 0.78rem; font-weight: 700;
+    cursor: pointer; outline: none; transition: 0.2s;
+}
+.sort-select:hover { border-color: var(--accent); }
+.sort-select:focus { border-color: var(--accent); }
+.sort-select option { background: var(--bg3); color: var(--text); }

@@ -216,6 +216,17 @@
             <button class="team-filter-btn" onclick="filterSquad('fighting',this)">🥊 FIGHTING</button>
             <button class="team-filter-btn" onclick="filterSquad('favorites',this)">⭐ FAVS</button>
         </div>
+        <div class="sort-bar">
+            <label class="sort-label">SORT BY</label>
+            <select id="squad-sort" class="sort-select" onchange="setSortMode(this.value)">
+                <option value="value_desc">💰 Value: High → Low</option>
+                <option value="value_asc">💰 Value: Low → High</option>
+                <option value="recent">🕐 Most Recent</option>
+                <option value="oldest">🕐 Oldest First</option>
+                <option value="az">🔤 A → Z</option>
+                <option value="za">🔤 Z → A</option>
+            </select>
+        </div>
         <div id="squad-grid" class="squad-grid"></div>
         <div class="squad-playtime-footer" id="squad-playtime-footer"></div>
     </div>
