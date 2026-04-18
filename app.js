@@ -298,6 +298,15 @@
         async function saveGame() {
             if (!currentUser) return;
             await flushPlaytime();
+            // Sanity check: fetch server balance before saving
+            const { data: current } = await _supabase
+                .from('user_saves').select('balance').eq('user_id', currentUser.id).single();
+            // If client balance is more than 50000 higher than server, reject the save
+            if (current && balance > current.balance + 50000) {
+                showToast('Save error — please refresh.');
+                balance = current.balance;
+                updateUI(); return;
+            }
             const cv = [...mySquad].sort((a,b) => getCardValue(b) - getCardValue(a)).slice(0, OFFICE_TOP_N).reduce((sum, p) => sum + getCardValue(p), 0);
             await _supabase.from('user_saves').upsert({
                 user_id: currentUser.id,
