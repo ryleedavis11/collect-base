@@ -89,20 +89,23 @@
                 </div>
             </div>
             <button id="nav-office" onclick="showView('office')">
-                DAYCARE
-                <span class="office-badge" id="office-badge">$</span>
+                DAYCARE <span class="office-badge" id="office-badge">$</span>
             </button>
+            <button id="nav-shop" onclick="showView('shop')">SHOP</button>
             <button id="nav-arena" onclick="showView('arena')">BATTLE</button>
             <button id="nav-rank" onclick="showView('rank')">RANKINGS</button>
             <button id="nav-trade" onclick="showView('trade')">
-                TRADE
-                <span class="trade-badge" id="trade-badge">!</span>
+                TRADE <span class="trade-badge" id="trade-badge">!</span>
             </button>
             <button id="logout-btn" onclick="handleLogout()">LOGOUT</button>
         </div>
-        <div class="nav-metric nav-right">COINS: <span class="bal-text">0</span> 🪙</div>
+        <div class="nav-metric nav-right">
+            <span id="nav-level-badge" class="nav-level-badge"></span>
+            COINS: <span class="bal-text">0</span> 🪙
+        </div>
     </nav>
 
+    <!-- ─── CARD DETAILS MODAL ─── -->
     <div id="modal-overlay" onclick="closeModal()">
         <div class="modal-content" onclick="event.stopPropagation()">
             <div id="modal-card-render" style="display:flex;justify-content:center;margin-bottom:20px;"></div>
@@ -121,16 +124,28 @@
         </div>
     </div>
 
+    <!-- ─── HOME VIEW ─── -->
     <div id="view-home" class="view">
         <div class="marquee-container"><div id="marquee-track" class="marquee-track"></div></div>
         <div class="home-content">
             <div class="home-logo"><span class="logo-poke">COLLECTION</span><span class="logo-draft">BASE</span></div>
             <div id="welcome-msg"></div>
+            <!-- Streak badge -->
+            <div id="streak-display" class="streak-display" style="display:none;"></div>
+            <!-- Activity Feed -->
+            <div class="home-feed-wrap">
+                <div class="home-section-label">🔴 LIVE ACTIVITY</div>
+                <div id="activity-feed-list" class="activity-feed-list">
+                    <div class="feed-empty">No activity yet — be the first to pull something big!</div>
+                </div>
+            </div>
+            <!-- Daily Challenges -->
             <div id="daily-challenges-panel" class="challenges-panel" style="margin-top:16px;width:100%;"></div>
             <button class="btn btn-primary" style="margin-top:10px;" onclick="showView('slots')">OPEN PACKS</button>
         </div>
     </div>
 
+    <!-- ─── PACK STORE VIEW ─── -->
     <div id="view-slots" class="view" style="position:relative;">
         <div class="store-pulls-bg"><div class="store-pulls-track" id="store-pulls-track"></div></div>
         <button id="catalog-toggle-btn" class="btn btn-outline" style="max-width:450px;margin:0 auto 15px;display:block;" onclick="openCatalog()">
@@ -177,6 +192,7 @@
         </div>
     </div>
 
+    <!-- ─── COLLECTION VIEW ─── -->
     <div id="view-team" class="view">
         <div class="view-header">
             <h2 class="view-title">MY COLLECTION</h2>
@@ -196,19 +212,24 @@
         <div class="squad-playtime-footer" id="squad-playtime-footer"></div>
     </div>
 
+    <!-- ─── DAYCARE VIEW ─── -->
     <div id="view-office" class="view">
         <div class="view-header">
             <h2 class="view-title">🏠 DAYCARE CENTER</h2>
             <p class="view-sub">Your top Pokémon earn passive income while you're away</p>
+        </div>
+        <!-- Featured card banner -->
+        <div id="featured-card-banner" style="display:none;" class="featured-banner">
+            <span class="featured-banner-icon">⭐</span>
+            <div><div class="featured-banner-title" id="featured-banner-title">FEATURED CARD THIS WEEK</div>
+            <div class="featured-banner-sub" id="featured-banner-sub">Earns 2× daycare income</div></div>
         </div>
         <div class="office-panel" id="office-panel">
             <div class="office-earn-display">
                 <div class="office-earn-label-top">PENDING EARNINGS</div>
                 <div class="office-earn-big" id="office-pending-display">0 🪙</div>
                 <div class="office-earn-rate" id="office-rate-display">-- 🪙 / hour</div>
-                <div class="office-timer-bar-wrap">
-                    <div class="office-timer-bar" id="office-timer-bar" style="width:0%"></div>
-                </div>
+                <div class="office-timer-bar-wrap"><div class="office-timer-bar" id="office-timer-bar" style="width:0%"></div></div>
                 <div class="office-timer-label" id="office-timer-label">0h 0m collected</div>
             </div>
             <button class="office-collect-btn empty" id="office-collect-btn" onclick="collectOfficeEarnings()">COLLECT</button>
@@ -216,6 +237,26 @@
         <div id="office-roster"></div>
     </div>
 
+    <!-- ─── COIN SHOP VIEW ─── -->
+    <div id="view-shop" class="view">
+        <div class="view-header">
+            <h2 class="view-title">🛒 COIN SHOP</h2>
+            <p class="view-sub">ROTATING STOCK · SPEND YOUR COINS ON SPECIFIC CARDS</p>
+        </div>
+        <div id="shop-tournament-banner" style="display:none;" class="tournament-banner">
+            <div class="tournament-banner-inner">
+                <div class="tournament-title" id="tournament-title">🏆 TOURNAMENT ACTIVE</div>
+                <div class="tournament-sub" id="tournament-sub"></div>
+                <div class="tournament-timer" id="tournament-timer"></div>
+                <div class="tournament-prizes" id="tournament-prizes"></div>
+            </div>
+        </div>
+        <div id="shop-grid" class="shop-grid">
+            <div class="shop-loading">Loading shop...</div>
+        </div>
+    </div>
+
+    <!-- ─── ARENA VIEW ─── -->
     <div id="view-arena" class="view">
         <div class="view-header">
             <h2 class="view-title">⚔ BATTLE ARENA</h2>
@@ -251,15 +292,9 @@
         <div id="arena-rolling" class="arena-phase">
             <div class="arena-rolling-inner">
                 <div class="arena-vs-row">
-                    <div class="arena-slot-wrap">
-                        <div class="arena-slot spinning"></div>
-                        <div class="arena-slot-label">YOU</div>
-                    </div>
+                    <div class="arena-slot-wrap"><div class="arena-slot spinning"></div><div class="arena-slot-label">YOU</div></div>
                     <div class="arena-vs-badge">VS</div>
-                    <div class="arena-slot-wrap">
-                        <div class="arena-slot spinning" style="animation-delay:0.15s"></div>
-                        <div class="arena-slot-label">BOT</div>
-                    </div>
+                    <div class="arena-slot-wrap"><div class="arena-slot spinning" style="animation-delay:0.15s"></div><div class="arena-slot-label">BOT</div></div>
                 </div>
                 <div id="arena-rolling-lbl" class="arena-rolling-lbl">DRAWING CARDS...</div>
             </div>
@@ -269,36 +304,33 @@
                 <div class="arena-banner" id="arena-banner">RESULT</div>
                 <div id="arena-type-adv-msg" class="arena-type-msg"></div>
                 <div class="arena-cards-row">
-                    <div class="arena-card-col">
-                        <div class="arena-slot-label">YOU</div>
-                        <div id="arena-card-player"></div>
-                        <div class="arena-val" id="arena-val-player">—</div>
-                    </div>
+                    <div class="arena-card-col"><div class="arena-slot-label">YOU</div><div id="arena-card-player"></div><div class="arena-val" id="arena-val-player">—</div></div>
                     <div class="arena-vs-mid">VS</div>
-                    <div class="arena-card-col">
-                        <div class="arena-slot-label">BOT</div>
-                        <div id="arena-card-bot"></div>
-                        <div class="arena-val" id="arena-val-bot">—</div>
-                    </div>
+                    <div class="arena-card-col"><div class="arena-slot-label">BOT</div><div id="arena-card-bot"></div><div class="arena-val" id="arena-val-bot">—</div></div>
                 </div>
                 <div class="arena-result-msg" id="arena-result-msg"></div>
-                <button class="btn btn-primary" onclick="startArenaBattle()" style="margin-top:20px;max-width:320px;">
-                    BATTLE AGAIN <span style="opacity:0.5;font-size:0.7rem;">↵</span>
-                </button>
+                <button class="btn btn-primary" onclick="startArenaBattle()" style="margin-top:20px;max-width:320px;">BATTLE AGAIN <span style="opacity:0.5;font-size:0.7rem;">↵</span></button>
                 <button class="btn" style="background:#1a1a28;max-width:320px;" onclick="arenaToLobby()">BACK TO LOBBY</button>
             </div>
         </div>
     </div>
 
+    <!-- ─── RANKINGS VIEW ─── -->
     <div id="view-rank" class="view">
         <div class="view-header">
             <h2 class="view-title">🏆 TRAINER RANKINGS</h2>
             <button class="btn" style="background:#1a1a28;width:auto;padding:8px 20px;font-size:0.75rem;" onclick="loadLeaderboard()">REFRESH</button>
         </div>
+        <!-- Tournament leaderboard if active -->
+        <div id="tournament-rank-section" style="display:none;width:100%;max-width:900px;margin-bottom:28px;">
+            <div class="tournament-rank-header" id="tournament-rank-header"></div>
+            <div id="tournament-rank-list"></div>
+        </div>
         <div id="podium-area" class="podium-area"></div>
         <div id="leaderboard-container"></div>
     </div>
 
+    <!-- ─── TRADE VIEW ─── -->
     <div id="view-trade" class="view">
         <div class="view-header">
             <h2 class="view-title">🔄 TRADE BOARD</h2>
@@ -349,6 +381,7 @@
         </div>
     </div>
 
+    <!-- ─── EXCHANGES VIEW ─── -->
     <div id="view-exchanges" class="view">
         <div class="view-header">
             <h2 class="view-title">🔁 EXCHANGES</h2>
@@ -358,7 +391,7 @@
         <div id="exchange-list"></div>
     </div>
 
-    <!-- MODALS -->
+    <!-- ─── MODALS ─── -->
     <div id="trade-accept-modal">
         <div class="trade-accept-box">
             <div class="trade-accept-title">INCOMING TRADE REQUEST</div>
@@ -378,7 +411,7 @@
     <div id="trade-pick-modal">
         <div class="trade-pick-box">
             <div class="trade-pick-title">CHOOSE A CARD TO OFFER</div>
-            <div class="trade-pick-sub" id="trade-pick-sub">Select a card from your collection that meets the request</div>
+            <div class="trade-pick-sub" id="trade-pick-sub">Select a card from your collection</div>
             <div class="trade-pick-grid" id="trade-pick-grid"></div>
             <button id="trade-pick-cancel" onclick="closePickModal()">CANCEL</button>
         </div>
@@ -411,7 +444,7 @@
         <div id="zoom-content"></div>
     </div>
 
-    <!-- SHARE COLLECTION MODAL -->
+    <!-- ─── SHARE MODAL ─── -->
     <div id="share-modal" onclick="if(event.target===this)closeShareModal()">
         <div class="share-box">
             <div class="share-title">📤 SHARE YOUR COLLECTION</div>
@@ -424,6 +457,31 @@
             <div class="share-preview-label">YOUR TOP 5 CARDS</div>
             <div id="share-preview-cards" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:20px;transform:scale(0.75);transform-origin:top center;"></div>
             <button class="btn" style="background:#1a1a28;max-width:200px;margin:0 auto;display:block;" onclick="closeShareModal()">CLOSE</button>
+        </div>
+    </div>
+
+    <!-- ─── LEVEL UP POPUP ─── -->
+    <div id="levelup-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9500;align-items:center;justify-content:center;">
+        <div class="levelup-box">
+            <div class="levelup-shine"></div>
+            <div class="levelup-badge" id="levelup-badge">LEVEL UP!</div>
+            <div class="levelup-level" id="levelup-level">LEVEL 2</div>
+            <div class="levelup-title" id="levelup-title">COLLECTOR</div>
+            <div class="levelup-reward" id="levelup-reward">+500 🪙</div>
+            <button class="btn btn-primary" style="max-width:200px;margin:20px auto 0;" onclick="closeLevelUp()">AWESOME!</button>
+        </div>
+    </div>
+
+    <!-- ─── LOGIN STREAK POPUP ─── -->
+    <div id="streak-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:9400;align-items:center;justify-content:center;">
+        <div class="streak-box">
+            <div class="streak-fire">🔥</div>
+            <div class="streak-title">LOGIN STREAK!</div>
+            <div class="streak-days" id="streak-days">DAY 3</div>
+            <div class="streak-reward-label">TODAY'S REWARD</div>
+            <div class="streak-reward" id="streak-reward">+300 🪙</div>
+            <div class="streak-progress" id="streak-progress"></div>
+            <button class="btn btn-primary" style="max-width:200px;margin:20px auto 0;" onclick="closeStreakOverlay()">COLLECT!</button>
         </div>
     </div>
 

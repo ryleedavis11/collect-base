@@ -789,3 +789,85 @@ nav button.active { color: var(--accent); border-bottom: 2px solid var(--accent)
 }
 #card-zoom-overlay[style*="display: flex"] { display: flex !important; }
 #zoom-content { transform: scale(1.5); transition: transform 0.2s ease-in-out; pointer-events: none; }
+/* ─── ACTIVITY FEED ──────────────────────────────────────────────────── */
+.home-feed-wrap { width:100%; margin-top:16px; }
+.home-section-label { font-size:0.62rem; color:var(--muted); letter-spacing:2px; font-weight:900; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+.activity-feed-list { background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:12px; overflow:hidden; max-height:180px; overflow-y:auto; }
+.feed-item { display:flex; align-items:center; gap:10px; padding:9px 14px; border-bottom:1px solid rgba(42,42,58,0.5); font-size:0.75rem; }
+.feed-item:last-child { border-bottom:none; }
+.feed-icon { font-size:1rem; flex-shrink:0; }
+.feed-text { flex:1; color:#ccc; line-height:1.3; }
+.feed-text strong { color:var(--accent); }
+.feed-time { font-size:0.6rem; color:var(--muted); white-space:nowrap; flex-shrink:0; }
+.feed-empty { padding:20px; text-align:center; color:var(--muted); font-size:0.75rem; }
+
+/* ─── LOGIN STREAK ───────────────────────────────────────────────────── */
+.streak-display { display:flex; align-items:center; gap:6px; justify-content:center; margin:6px 0; }
+.streak-fire-sm { font-size:1.1rem; }
+.streak-count { font-size:0.72rem; color:var(--accent); font-weight:900; letter-spacing:1px; }
+
+.streak-box { background:linear-gradient(135deg,#1a0e00,#111); border:2px solid var(--accent); border-radius:24px; padding:40px; text-align:center; max-width:380px; width:92%; position:relative; box-shadow:0 0 60px rgba(255,203,5,0.2); animation:lpaIn 0.5s cubic-bezier(0.175,0.885,0.32,1.275); }
+.streak-fire { font-size:3rem; margin-bottom:8px; animation:fireWiggle 0.8s ease-in-out infinite; }
+@keyframes fireWiggle { 0%,100%{transform:rotate(-5deg);}50%{transform:rotate(5deg);} }
+.streak-title { font-family:var(--font-display); font-size:1.8rem; color:var(--accent); letter-spacing:4px; margin-bottom:4px; }
+.streak-days { font-family:var(--font-display); font-size:3rem; color:#fff; letter-spacing:3px; margin-bottom:12px; }
+.streak-reward-label { font-size:0.62rem; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:6px; }
+.streak-reward { font-family:var(--font-display); font-size:2rem; color:var(--gold); letter-spacing:2px; margin-bottom:20px; }
+.streak-progress { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+.streak-dot { width:32px; height:32px; border-radius:50%; background:#1a1a2a; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:0.7rem; font-weight:900; color:var(--muted); }
+.streak-dot.done  { background:var(--accent); border-color:var(--accent); color:#111; }
+.streak-dot.today { background:var(--gold); border-color:var(--gold); color:#111; box-shadow:0 0 12px rgba(255,215,0,0.5); }
+
+/* ─── LEVEL UP POPUP ─────────────────────────────────────────────────── */
+.levelup-box { background:linear-gradient(135deg,#0a0a1a,#131328); border:2px solid var(--accent); border-radius:24px; padding:40px; text-align:center; max-width:380px; width:92%; position:relative; overflow:hidden; box-shadow:0 0 60px rgba(255,203,5,0.3); animation:lpaIn 0.5s cubic-bezier(0.175,0.885,0.32,1.275); }
+.levelup-shine { position:absolute; inset:0; background:conic-gradient(from 0deg,transparent,rgba(255,203,5,0.15),transparent,rgba(255,203,5,0.1),transparent); animation:infernoSpin 4s linear infinite; pointer-events:none; }
+.levelup-badge { font-size:0.65rem; color:var(--accent); letter-spacing:4px; font-weight:900; text-transform:uppercase; margin-bottom:8px; }
+.levelup-level { font-family:var(--font-display); font-size:4rem; color:var(--accent); letter-spacing:4px; line-height:1; text-shadow:0 0 30px rgba(255,203,5,0.5); }
+.levelup-title { font-family:var(--font-display); font-size:1.6rem; color:#fff; letter-spacing:3px; margin-top:4px; margin-bottom:16px; }
+.levelup-reward { font-family:var(--font-display); font-size:2rem; color:var(--gold); letter-spacing:2px; }
+
+/* ─── NAV LEVEL BADGE ────────────────────────────────────────────────── */
+.nav-level-badge { background:var(--accent); color:#111; border-radius:6px; padding:1px 7px; font-size:0.65rem; font-weight:900; letter-spacing:1px; margin-right:4px; }
+
+/* ─── COIN SHOP ──────────────────────────────────────────────────────── */
+.shop-grid { display:flex; flex-wrap:wrap; gap:20px; max-width:1100px; width:100%; padding-bottom:40px; justify-content:center; }
+.shop-item { background:var(--bg2); border:1px solid var(--border); border-radius:16px; padding:20px; display:flex; flex-direction:column; align-items:center; gap:12px; transition:border-color 0.2s; width:220px; flex-shrink:0; }
+.shop-item:hover:not(.out-of-stock) { border-color:var(--accent); }
+.shop-item.out-of-stock { opacity:0.5; }
+.shop-item-card { transform:scale(0.75); margin:-36px 0; pointer-events:none; }
+.shop-item-info { text-align:center; width:100%; }
+.shop-item-name { font-family:var(--font-display); font-size:1.1rem; color:#fff; letter-spacing:2px; margin-bottom:4px; }
+.shop-item-desc { font-size:0.68rem; color:var(--muted); margin-bottom:6px; line-height:1.4; }
+.shop-item-stock { font-size:0.65rem; font-weight:900; letter-spacing:1px; margin-bottom:6px; }
+.shop-item-price { font-family:var(--font-display); font-size:1.4rem; color:var(--gold); letter-spacing:1px; margin-bottom:10px; }
+.shop-buy-btn { width:100%; padding:10px; border:none; border-radius:10px; background:var(--accent); color:#111; font-family:var(--font-body); font-weight:900; font-size:0.8rem; letter-spacing:1px; text-transform:uppercase; cursor:pointer; transition:0.2s; }
+.shop-buy-btn:hover:not(.disabled) { filter:brightness(1.1); box-shadow:0 0 16px rgba(255,203,5,0.4); }
+.shop-buy-btn.disabled { background:#222; color:#444; cursor:not-allowed; }
+.shop-loading { grid-column:1/-1; text-align:center; padding:60px; color:var(--muted); font-size:0.85rem; letter-spacing:2px; }
+.shop-empty { grid-column:1/-1; text-align:center; padding:60px; color:var(--muted); font-size:0.82rem; letter-spacing:1px; }
+
+/* ─── TOURNAMENT BANNER ──────────────────────────────────────────────── */
+.tournament-banner { background:linear-gradient(135deg,#0a1a0a,#111); border:2px solid rgba(62,207,142,0.4); border-radius:16px; padding:20px 24px; margin-bottom:24px; width:100%; max-width:1100px; box-shadow:0 0 24px rgba(62,207,142,0.1); }
+.tournament-banner-inner { text-align:center; }
+.tournament-title { font-family:var(--font-display); font-size:1.6rem; color:var(--green); letter-spacing:3px; margin-bottom:4px; }
+.tournament-sub { font-size:0.75rem; color:#aaa; margin-bottom:8px; }
+.tournament-timer { font-size:0.72rem; color:var(--muted); margin-bottom:10px; font-weight:900; letter-spacing:1px; }
+.tournament-prizes { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+.t-prize { background:rgba(255,215,0,0.1); border:1px solid rgba(255,215,0,0.3); border-radius:8px; padding:4px 12px; font-size:0.68rem; font-weight:900; color:var(--gold); letter-spacing:1px; }
+
+/* ─── TOURNAMENT RANK SECTION ────────────────────────────────────────── */
+.tournament-rank-header { display:flex; justify-content:space-between; align-items:center; background:linear-gradient(135deg,#0a1a0a,#111); border:1px solid rgba(62,207,142,0.3); border-radius:12px; padding:14px 20px; margin-bottom:12px; }
+.tournament-rank-name { font-family:var(--font-display); font-size:1.2rem; color:var(--green); letter-spacing:2px; }
+.tournament-rank-timer { font-size:0.7rem; color:var(--muted); font-weight:900; }
+
+/* ─── LEADERBOARD ADDITIONS ──────────────────────────────────────────── */
+.podium-title-badge { font-size:0.58rem; color:var(--accent); letter-spacing:2px; font-weight:900; text-transform:uppercase; margin-bottom:6px; }
+.rank-level-badge { background:rgba(255,203,5,0.1); border:1px solid rgba(255,203,5,0.3); color:var(--accent); border-radius:6px; padding:2px 8px; font-size:0.65rem; font-weight:900; }
+
+/* ─── FEATURED CARD BANNER ───────────────────────────────────────────── */
+.featured-banner { background:linear-gradient(135deg,#1a1400,#111); border:1px solid rgba(255,203,5,0.4); border-radius:12px; padding:12px 20px; margin-bottom:20px; width:100%; max-width:500px; display:flex; align-items:center; gap:12px; box-shadow:0 0 16px rgba(255,203,5,0.1); }
+.featured-banner-icon { font-size:1.6rem; }
+.featured-banner-title { font-size:0.8rem; font-weight:900; color:var(--accent); letter-spacing:1px; }
+.featured-banner-sub { font-size:0.65rem; color:var(--muted); margin-top:2px; }
+.featured-card-wrap { position:relative; }
+.featured-star-badge { position:absolute; top:-10px; left:50%; transform:translateX(-50%); background:var(--gold); color:#111; font-size:0.6rem; font-weight:900; padding:2px 8px; border-radius:20px; white-space:nowrap; z-index:50; letter-spacing:1px; }
