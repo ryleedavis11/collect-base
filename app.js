@@ -661,10 +661,25 @@
         }
 
         async function openPack() {
+            // Rate limit: prevent opening packs faster than once every 3 seconds
+            const now = Date.now();
+            if (window._lastPackOpen && (now - window._lastPackOpen) < 3000) {
+                showToast('Slow down!'); return;
+            }
+            window._lastPackOpen = now;
+
             showLoading();
             const { data: pack, error } = await _supabase.from('packs').select('*').eq('tier', activeTier).single();
             if (error || !pack) { hideLoading(); showToast("Error loading pack data from server."); return; }
-            if (balance < pack.cost) { hideLoading(); showToast("Not enough coins!"); return; }
+
+            // Double-check balance from server, not just client memory
+            const { data: freshSave } = await _supabase
+                .from('user_saves').select('balance').eq('user_id', currentUser.id).single();
+            if (!freshSave || freshSave.balance < pack.cost) {
+                hideLoading(); showToast("Not enough coins!"); return;
+            }
+            balance = freshSave.balance; // sync client to server value
+
             balance -= pack.cost;
             const roll = Math.random() * 100;
             let pulledPlayer = null;
@@ -807,7 +822,12 @@
             const { data: item, error } = await _supabase.from('coin_shop').select('*, collection(*)').eq('id', itemId).single();
             if (error || !item) { showToast('❌ Item not found.'); return; }
             if (item.stock <= 0) { showToast('❌ Out of stock!'); return; }
-            if (balance < item.price) { showToast('❌ Not enough coins!'); return; }
+            const { data: freshSave } = await _supabase
+                    .from('user_saves').select('balance').eq('user_id', currentUser.id).single();
+                if (!freshSave || freshSave.balance < item.price) {
+                    showToast('❌ Not enough coins!'); return;
+                }
+                balance = freshSave.balance;
             balance -= item.price;
             // Decrement stock
             await _supabase.from('coin_shop').update({ stock: item.stock - 1 }).eq('id', itemId);
@@ -1601,6 +1621,11 @@
         async function ownerAcceptTrade() {
             const t = tradeState.pendingAcceptTrade;
             if (!t) return;
+            // Verify Player 1 still owns their offered card
+            const p1StillOwns = mySquad.find(c => c.instanceId === t.offered_card.instanceId);
+            if (!p1StillOwns) {
+                showToast('❌ You no longer own that card.'); closeOwnerReviewModal(); return;
+            }
             // Player 1 accepts — swap happens immediately for Player 1
             // Player 1 loses their offered card, gains Player 2's card
             mySquad = mySquad.filter(c => c.instanceId !== t.offered_card.instanceId);
