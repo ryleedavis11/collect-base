@@ -1459,15 +1459,32 @@
         // INCOMING: Player 2 sees status of offers they sent
         async function loadIncomingTrades() {
             const list = document.getElementById('trade-incoming-list');
-            list.innerHTML = '<div class="no-trades"><div class="nt-icon">loading</div><p>LOADING...</p></div>';
+            list.innerHTML = '<div class="no-trades"><div class="nt-icon">⏳</div><p>LOADING...</p></div>';
             const { data } = await _supabase.from('trades').select('*')
                 .eq('receiver_id', currentUser.id)
-                .in('status',['pending','accepted','declined'])
+                .in('status',['pending','accepted','declined','completed'])
                 .order('created_at',{ascending:false});
             const countEl = document.getElementById('incoming-count-tab');
-            const acceptedCount = (data||[]).filter(t => t.status === 'accepted').length;
-            if (countEl) countEl.innerText = acceptedCount > 0 ? '(' + acceptedCount + ')' : '';
-            if (!data || data.length === 0) { list.innerHTML = '<div class="no-trades"><div class="nt-icon">no</div><p>NO OFFERS SENT YET</p></div>'; return; }
+
+            // Auto-complete Player 2's side for any 'completed' trades not yet in their squad
+            if (data) {
+                for (const t of data.filter(tr => tr.status === 'completed')) {
+                    const alreadyHave = mySquad.find(c => c.instanceId && c.instanceId.startsWith('inst_trade_' + t.id));
+                    const stillHasOffered = mySquad.find(c => c.instanceId === t.receiver_card?.instanceId);
+                    if (stillHasOffered && !alreadyHave) {
+                        // Player 2 still has their card — do the swap
+                        mySquad = mySquad.filter(c => c.instanceId !== t.receiver_card.instanceId);
+                        const p2NewCard = { ...t.offered_card, instanceId: 'inst_trade_' + t.id, collectedDate: new Date().toLocaleDateString() };
+                        mySquad.push(p2NewCard);
+                        renderSquad(); updateUI(); await saveGame();
+                        addNotification('Trade complete! You received ' + t.offered_card.name + ' from ' + (t.sender_username||'a trainer') + '!');
+                        showToast('Trade complete! You received ' + t.offered_card.name + '!');
+                        addXP(15);
+                    }
+                }
+            }
+
+            if (!data || data.length === 0) { list.innerHTML = '<div class="no-trades"><div class="nt-icon">📬</div><p>NO OFFERS SENT YET</p></div>'; return; }
             list.innerHTML = data.map(t => {
                 const isAccepted = t.status === 'accepted';
                 const isDeclined = t.status === 'declined';
@@ -1559,9 +1576,18 @@
         async function ownerAcceptTrade() {
             const t = tradeState.pendingAcceptTrade;
             if (!t) return;
-            await _supabase.from('trades').update({ status: 'accepted' }).eq('id', t.id);
+            // Player 1 accepts — swap happens immediately for Player 1
+            // Player 1 loses their offered card, gains Player 2's card
+            mySquad = mySquad.filter(c => c.instanceId !== t.offered_card.instanceId);
+            const p1NewCard = { ...t.receiver_card, instanceId: 'inst_' + Date.now(), collectedDate: new Date().toLocaleDateString() };
+            mySquad.push(p1NewCard);
+            // Mark as completed so Player 2's poll picks it up
+            await _supabase.from('trades').update({ status: 'completed' }).eq('id', t.id);
             closeOwnerReviewModal();
-            showToast('Trade accepted! The other trainer can now complete it.');
+            renderSquad(); updateUI(); await saveGame();
+            showToast('Trade complete! You received ' + t.receiver_card.name + '!');
+            logActivity('completed_exchange', p1NewCard);
+            addXP(15);
             loadMyTrades();
         }
 
@@ -1572,21 +1598,6 @@
             closeOwnerReviewModal();
             showToast('Trade declined.');
             loadMyTrades();
-        }
-
-        // COMPLETE TRADE: Player 2 finalizes after Player 1 accepted
-        async function completeAcceptedTrade(tradeId) {
-            const { data: t } = await _supabase.from('trades').select('*').eq('id', tradeId).single();
-            if (!t || t.status !== 'accepted') { showToast('Trade is no longer available.'); loadIncomingTrades(); return; }
-            mySquad = mySquad.filter(c => c.instanceId !== t.receiver_card.instanceId);
-            const newCard = { ...t.offered_card, instanceId: 'inst_' + Date.now(), collectedDate: new Date().toLocaleDateString() };
-            mySquad.push(newCard);
-            await _supabase.from('trades').update({ status: 'completed' }).eq('id', t.id);
-            renderSquad(); updateUI(); await saveGame();
-            showToast('Trade complete! You received ' + t.offered_card.name + '!');
-            logActivity('completed_exchange', newCard);
-            addXP(15);
-            loadIncomingTrades();
         }
 
         // WITHDRAW: Player 2 cancels their offer
@@ -1651,9 +1662,28 @@
                 const { data: myPending } = await _supabase.from('trades')
                     .select('id, receiver_username, receiver_card')
                     .eq('sender_id', currentUser.id).eq('status','pending').limit(5);
-                const { data: myAccepted } = await _supabase.from('trades')
-                    .select('id').eq('receiver_id', currentUser.id).eq('status','accepted').limit(5);
-                const totalUnread = (myPending?.length||0) + (myAccepted?.length||0);
+                const { data: myCompleted } = await _supabase.from('trades')
+                    .select('id, offered_card, receiver_card, sender_username')
+                    .eq('receiver_id', currentUser.id).eq('status','completed').limit(5);
+                // Auto-process completed trades for Player 2
+                if (myCompleted) {
+                    for (const t of myCompleted) {
+                        const key = 'p2_done_' + t.id;
+                        if (!sessionStorage.getItem(key) && t.receiver_card) {
+                            const stillHas = mySquad.find(c => c.instanceId === t.receiver_card.instanceId);
+                            if (stillHas) {
+                                mySquad = mySquad.filter(c => c.instanceId !== t.receiver_card.instanceId);
+                                const p2New = { ...t.offered_card, instanceId: 'inst_trade_' + t.id, collectedDate: new Date().toLocaleDateString() };
+                                mySquad.push(p2New);
+                                renderSquad(); updateUI(); saveGame();
+                                sessionStorage.setItem(key, '1');
+                                addNotification('Trade complete! You received ' + t.offered_card.name + '!');
+                                showToast('Trade complete! You received ' + t.offered_card.name + '!');
+                            }
+                        }
+                    }
+                }
+                const totalUnread = (myPending?.length||0);
                 const badge = document.getElementById('trade-badge');
                 const countEl = document.getElementById('incoming-count-tab');
                 if (totalUnread > 0) {
