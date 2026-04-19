@@ -204,7 +204,10 @@
     <div id="view-team" class="view">
         <div class="view-header">
             <h2 class="view-title">MY COLLECTION</h2>
-            <button class="btn btn-outline" style="width:auto;padding:8px 20px;font-size:0.75rem;margin-top:8px;" onclick="openShareModal()">📤 SHARE COLLECTION</button>
+            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px;">
+                <button class="btn btn-outline" style="width:auto;padding:8px 20px;font-size:0.75rem;" onclick="openShareModal()">📤 SHARE COLLECTION</button>
+                <button id="multiselect-btn" class="btn btn-outline" style="width:auto;padding:8px 20px;font-size:0.75rem;border-color:#ef4444;color:#ef4444;" onclick="toggleMultiSelect()">☑ SELECT TO SELL</button>
+            </div>
         </div>
         <div class="team-filter-bar" id="team-filter-bar">
             <button class="team-filter-btn active" onclick="filterSquad('all',this)">ALL</button>
@@ -226,6 +229,13 @@
                 <option value="az">🔤 A → Z</option>
                 <option value="za">🔤 Z → A</option>
             </select>
+        </div>
+        <div id="multiselect-bar" style="display:none;background:#1a0808;border:1px solid #ef4444;border-radius:12px;padding:12px 20px;margin-bottom:16px;width:100%;max-width:1200px;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <span id="multiselect-count" style="font-size:0.78rem;font-weight:900;color:#ef4444;letter-spacing:1px;">0 SELECTED</span>
+            <div style="display:flex;gap:8px;">
+                <button class="btn btn-danger" style="width:auto;padding:8px 24px;font-size:0.78rem;margin:0;" onclick="sellSelected()">SELL SELECTED</button>
+                <button class="btn" style="background:#1a1a2a;border:1px solid #333;width:auto;padding:8px 20px;font-size:0.78rem;margin:0;" onclick="exitMultiSelectMode()">CANCEL</button>
+            </div>
         </div>
         <div id="squad-grid" class="squad-grid"></div>
         <div class="squad-playtime-footer" id="squad-playtime-footer"></div>

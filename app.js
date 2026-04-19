@@ -1217,11 +1217,80 @@
         // ─── MULTI-SELECT ─────────────────────────────────────────────────────────
         let multiSelectMode = false;
         let multiSelectIds  = new Set();
+
         function squadCardClick(event, id) {
-            if (multiSelectMode) { multiSelectIds.has(id) ? multiSelectIds.delete(id) : multiSelectIds.add(id); renderSquad(); }
-            else { showCardDetails(id); }
+            if (multiSelectMode) {
+                multiSelectIds.has(id) ? multiSelectIds.delete(id) : multiSelectIds.add(id);
+                updateMultiSelectBar();
+                renderSquad();
+            } else { showCardDetails(id); }
         }
-        function exitMultiSelect() { multiSelectMode = false; multiSelectIds.clear(); }
+
+        function updateMultiSelectBar() {
+            const countEl = document.getElementById('multiselect-count');
+            if (!countEl) return;
+            const selected = mySquad.filter(p => multiSelectIds.has(p.instanceId));
+            const sellable = selected.filter(p => !p.isFavorite && !_lockedCardIds.has(p.instanceId));
+            const total = sellable.reduce((sum, p) => sum + getSellValue(p), 0);
+            countEl.innerText = multiSelectIds.size + ' SELECTED · ' + total.toLocaleString() + ' 🪙';
+        }
+
+        function toggleMultiSelect() {
+            multiSelectMode = !multiSelectMode;
+            if (!multiSelectMode) multiSelectIds.clear();
+            const bar = document.getElementById('multiselect-bar');
+            const btn = document.getElementById('multiselect-btn');
+            if (bar) bar.style.display = multiSelectMode ? 'flex' : 'none';
+            if (btn) {
+                btn.innerText = multiSelectMode ? '✕ CANCEL SELECTION' : '☑ SELECT TO SELL';
+                btn.style.borderColor = multiSelectMode ? '#ffd700' : '#ef4444';
+                btn.style.color = multiSelectMode ? '#ffd700' : '#ef4444';
+            }
+            renderSquad();
+        }
+
+        function exitMultiSelectMode() {
+            multiSelectMode = false;
+            multiSelectIds.clear();
+            const bar = document.getElementById('multiselect-bar');
+            const btn = document.getElementById('multiselect-btn');
+            if (bar) bar.style.display = 'none';
+            if (btn) { btn.innerText = '☑ SELECT TO SELL'; btn.style.borderColor = '#ef4444'; btn.style.color = '#ef4444'; }
+            renderSquad();
+        }
+
+        async function sellSelected() {
+            if (multiSelectIds.size === 0) { showToast('No cards selected.'); return; }
+            const toSell = mySquad.filter(p =>
+                multiSelectIds.has(p.instanceId) &&
+                !p.isFavorite &&
+                !_lockedCardIds.has(p.instanceId)
+            );
+            const skipped = multiSelectIds.size - toSell.length;
+            if (toSell.length === 0) {
+                showToast('No sellable cards — favourited and locked cards cannot be sold.');
+                return;
+            }
+            const totalValue = toSell.reduce((sum, p) => sum + getSellValue(p), 0);
+            const skipMsg = skipped > 0 ? ' (' + skipped + ' skipped — favourited or locked)' : '';
+            if (!confirm('Sell ' + toSell.length + ' cards for ' + totalValue.toLocaleString() + ' 🪙?' + skipMsg)) return;
+            toSell.forEach(p => {
+                balance += getSellValue(p);
+                mySquad = mySquad.filter(c => c.instanceId !== p.instanceId);
+            });
+            exitMultiSelectMode();
+            updateUI(); renderSquad(); await saveGame();
+            showToast('💰 Sold ' + toSell.length + ' cards for +' + totalValue.toLocaleString() + ' 🪙!');
+        }
+
+        function exitMultiSelect() {
+            multiSelectMode = false;
+            multiSelectIds.clear();
+            const bar = document.getElementById('multiselect-bar');
+            const btn = document.getElementById('multiselect-btn');
+            if (bar) bar.style.display = 'none';
+            if (btn) { btn.innerText = '☑ SELECT TO SELL'; btn.style.borderColor = '#ef4444'; btn.style.color = '#ef4444'; }
+        }
 
         // ─── PLAYTIME TRACKING ────────────────────────────────────────────────────
         let _sessionStart = Date.now();
