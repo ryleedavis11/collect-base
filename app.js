@@ -773,18 +773,40 @@
             });
         }
 
-        function updateFeaturedCardBanner() {
+        async function updateFeaturedCardBanner() {
             const banner = document.getElementById('featured-card-banner');
-            const titleEl = document.getElementById('featured-banner-title');
-            const subEl = document.getElementById('featured-banner-sub');
             if (!banner) return;
-            if (_featuredCardConfig?.card_id) {
-                banner.style.display = 'flex';
-                titleEl.innerText = _featuredCardConfig.label || 'FEATURED CARD THIS WEEK';
-                subEl.innerText = `Earns ${_featuredCardConfig.multiplier || 2}× daycare income`;
-            } else {
-                banner.style.display = 'none';
-            }
+            if (!_featuredCardConfig?.card_id) { banner.style.display = 'none'; return; }
+            const { data: card } = await _supabase
+                .from('collection').select('*').eq('id', _featuredCardConfig.card_id).single();
+            if (!card) { banner.style.display = 'none'; return; }
+            banner.style.display = 'flex';
+            banner.style.cursor = 'pointer';
+            banner.innerHTML = `
+                <span class="featured-banner-icon">⭐</span>
+                <div style="flex:1;">
+                    <div class="featured-banner-title">FEATURED CARD THIS WEEK</div>
+                    <div class="featured-banner-sub">${card.name.toUpperCase()} · Earns ${_featuredCardConfig.multiplier || 2}× daycare income — tap to view</div>
+                </div>
+                <span style="color:#ffd700;font-size:0.8rem;">▶</span>`;
+            banner.onclick = () => showFeaturedCardModal(card);
+        }
+
+        function showFeaturedCardModal(card) {
+            const existing = document.getElementById('featured-card-modal');
+            if (existing) existing.remove();
+            const modal = document.createElement('div');
+            modal.id = 'featured-card-modal';
+            modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:3000;display:flex;align-items:center;justify-content:center;';
+            modal.innerHTML = `
+                <div style="background:#1a1a28;border:2px solid #ffd700;border-radius:20px;padding:32px;text-align:center;max-width:340px;width:92%;box-shadow:0 0 40px rgba(255,203,5,0.2);">
+                    <div style="font-size:0.62rem;color:#ffd700;letter-spacing:3px;font-weight:900;margin-bottom:12px;">⭐ FEATURED CARD THIS WEEK</div>
+                    <div style="display:flex;justify-content:center;margin-bottom:16px;">${generateCardHtml(card, false)}</div>
+                    <div style="font-size:0.72rem;color:#aaa;line-height:1.6;">This card earns <strong style="color:#ffd700;">${_featuredCardConfig.multiplier || 2}×</strong> daycare income this week.<br>Own it? It's earning double right now.</div>
+                    <button onclick="document.getElementById('featured-card-modal').remove()" style="margin-top:20px;background:#111;border:1px solid #333;color:#888;padding:10px 28px;border-radius:10px;cursor:pointer;font-family:var(--font-body);font-weight:900;font-size:0.8rem;text-transform:uppercase;">CLOSE</button>
+                </div>`;
+            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+            document.body.appendChild(modal);
         }
 
         // ─── COIN SHOP ────────────────────────────────────────────────────────────
