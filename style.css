@@ -780,12 +780,17 @@ nav button.active { color: var(--accent); border-bottom: 2px solid var(--accent)
 /* ─── CARD ZOOM OVERLAY ──────────────────────────────────────────────── */
 #card-zoom-overlay {
     display: none; position: fixed; inset: 0;
-    background: rgba(0,0,0,0.85); z-index: 9999;
+    background: rgba(0,0,0,0.92); z-index: 9999;
     align-items: center; justify-content: center;
-    cursor: zoom-out; backdrop-filter: blur(8px);
+    cursor: zoom-out; backdrop-filter: blur(12px);
 }
 #card-zoom-overlay[style*="display: flex"] { display: flex !important; }
-#zoom-content { transform: scale(1.5); transition: transform 0.2s ease-in-out; pointer-events: none; }
+#zoom-content {
+    transform: scale(2.8);
+    transition: transform 0.3s cubic-bezier(0.175,0.885,0.32,1.275);
+    pointer-events: none;
+    filter: drop-shadow(0 0 40px rgba(255,203,5,0.3));
+}
 /* ─── ACTIVITY FEED ──────────────────────────────────────────────────── */
 .home-feed-wrap { width:100%; }
 .home-section-label { font-size:0.62rem; color:var(--muted); letter-spacing:2px; font-weight:900; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; gap:6px; }

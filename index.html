@@ -74,7 +74,7 @@
     </div>
 
     <nav id="main-nav">
-        <div class="nav-metric nav-left">DEX: <span id="nav-dex-value">0</span> 🪙</div>
+        <div class="nav-metric nav-left">DEX: <span id="nav-dex-value">0</span> 🌕</div>
         <div class="nav-center">
             <button id="nav-home" onclick="showView('home')">HOME</button>
             <button id="nav-slots" onclick="showView('slots')">PACK STORE</button>
@@ -112,7 +112,7 @@
                 </div>
             </div>
             <span id="nav-level-badge" class="nav-level-badge"></span>
-            COINS: <span class="bal-text">0</span> 🪙
+            COINS: <span class="bal-text">0</span> 🌕
         </div>
     </nav>
 
@@ -168,7 +168,7 @@
             <div class="home-stat-card" onclick="showView('office')">
                 <div class="home-stat-icon">💰</div>
                 <div class="home-stat-value" id="stat-hourly">0</div>
-                <div class="home-stat-label">🪙/HR</div>
+                <div class="home-stat-label">🌕/HR</div>
             </div>
             <div class="home-stat-card" onclick="showView('profile')">
                 <div class="home-stat-icon">⚡</div>
@@ -254,10 +254,10 @@
                 <button class="daily-collect-btn" id="daily-collect-btn" onclick="claimDailyReward()">COLLECT</button>
             </div>
             <div id="packArea">
-                <button id="btn-std"   class="btn pack-btn pack-btn-std"   onclick="preparePack('std')">Standard (500 🪙)</button>
-                <button id="btn-pre"   class="btn pack-btn pack-btn-pre"   onclick="preparePack('pre')">Premium (2500 🪙)</button>
-                <button id="btn-elt"   class="btn pack-btn pack-btn-elt"   onclick="preparePack('elt')">Elite (10000 🪙)</button>
-                <button id="btn-promo" class="btn pack-btn pack-btn-promo" onclick="preparePack('promo')">1st Edition (15000 🪙)</button>
+                <button id="btn-std"   class="btn pack-btn pack-btn-std"   onclick="preparePack('std')">Standard (500 🌕)</button>
+                <button id="btn-pre"   class="btn pack-btn pack-btn-pre"   onclick="preparePack('pre')">Premium (2500 🌕)</button>
+                <button id="btn-elt"   class="btn pack-btn pack-btn-elt"   onclick="preparePack('elt')">Elite (10000 🌕)</button>
+                <button id="btn-promo" class="btn pack-btn pack-btn-promo" onclick="preparePack('promo')">1st Edition (15000 🌕)</button>
             </div>
             <div id="limited-stock-banner" style="margin-top:14px;display:none;background:linear-gradient(135deg,#0a0a0a,#111);border:1px solid #bebebe44;border-radius:12px;padding:12px 16px;text-align:center;">
                 <div style="font-size:0.6rem;color:#bebebe;letter-spacing:2px;font-weight:900;margin-bottom:8px;text-transform:uppercase;">🔒 LIMITED CARDS REMAINING</div>
@@ -333,8 +333,8 @@
         <div class="office-panel" id="office-panel">
             <div class="office-earn-display">
                 <div class="office-earn-label-top">PENDING EARNINGS</div>
-                <div class="office-earn-big" id="office-pending-display">0 🪙</div>
-                <div class="office-earn-rate" id="office-rate-display">-- 🪙 / hour</div>
+                <div class="office-earn-big" id="office-pending-display">0 🌕</div>
+                <div class="office-earn-rate" id="office-rate-display">-- 🌕 / hour</div>
                 <div class="office-timer-bar-wrap"><div class="office-timer-bar" id="office-timer-bar" style="width:0%"></div></div>
                 <div class="office-timer-label" id="office-timer-label">0h 0m collected</div>
             </div>
@@ -366,14 +366,14 @@
     <div id="view-arena" class="view">
         <div class="view-header">
             <h2 class="view-title">⚔ BATTLE ARENA</h2>
-            <p class="view-sub">Pay 500 🪙 · Standard pack odds · Type advantages apply</p>
+            <p class="view-sub">Pay 500 🌕 · Standard pack odds · Type advantages apply</p>
         </div>
         <div id="arena-lobby" class="arena-phase active-phase">
             <div class="arena-lobby-inner">
-                <div class="arena-cost-badge">ENTRY: 500 🪙</div>
+                <div class="arena-cost-badge">ENTRY: 500 🌕</div>
                 <div class="arena-rules">
                     <div class="arena-rule">🎴 Cards drawn using your Standard pack odds</div>
-                    <div class="arena-rule">🏆 Win: Keep your card + 500 🪙 bonus</div>
+                    <div class="arena-rule">🏆 Win: Keep your card + 500 🌕 bonus</div>
                     <div class="arena-rule">🤝 Draw: Entry fee refunded</div>
                     <div class="arena-rule">💀 Loss: Card is burned</div>
                     <div class="arena-rule" style="color:#ffcb05;">⚡ TYPE ADVANTAGES give +20% value bonus</div>
@@ -394,7 +394,7 @@
                 </div>
                 <button class="arena-enter-btn" onclick="startArenaBattle()">ENTER BATTLE</button>
                 <button class="arena-enter-btn arena-high-stakes-btn" onclick="startArenaBattle(true)" style="margin-top:10px;background:linear-gradient(135deg,#7c3aed,#4f1d96);font-size:1.1rem;">
-                    ⚡ HIGH STAKES — 5,000 🪙
+                    ⚡ HIGH STAKES — 5,000 🌕
                 </button>
             </div>
         </div>
@@ -653,7 +653,7 @@
             <div class="levelup-badge" id="levelup-badge">LEVEL UP!</div>
             <div class="levelup-level" id="levelup-level">LEVEL 2</div>
             <div class="levelup-title" id="levelup-title">COLLECTOR</div>
-            <div class="levelup-reward" id="levelup-reward">+500 🪙</div>
+            <div class="levelup-reward" id="levelup-reward">+500 🌕</div>
             <button class="btn btn-primary" style="max-width:200px;margin:20px auto 0;" onclick="closeLevelUp()">AWESOME!</button>
         </div>
     </div>
@@ -665,7 +665,7 @@
             <div class="streak-title">LOGIN STREAK!</div>
             <div class="streak-days" id="streak-days">DAY 3</div>
             <div class="streak-reward-label">TODAY'S REWARD</div>
-            <div class="streak-reward" id="streak-reward">+300 🪙</div>
+            <div class="streak-reward" id="streak-reward">+300 🌕</div>
             <div class="streak-progress" id="streak-progress"></div>
             <button class="btn btn-primary" style="max-width:200px;margin:20px auto 0;" onclick="closeStreakOverlay()">COLLECT!</button>
         </div>

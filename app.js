@@ -197,7 +197,7 @@
             startOfficeTicker();
             startTradePoll();
             if (window._offlineEarnedNotif) {
-                showToast(`💰 While you were away, your Daycare earned +${window._offlineEarnedNotif.toLocaleString()} 🪙`);
+                showToast(`💰 While you were away, your Daycare earned +${window._offlineEarnedNotif.toLocaleString()} 🌕`);
                 window._offlineEarnedNotif = null;
             }
             loadStorePrices();
@@ -373,7 +373,7 @@
             d.shown = true;
             document.getElementById('streak-days').innerText = `DAY ${d.streak}`;
             if (d.type === 'coins') {
-                document.getElementById('streak-reward').innerText = d.value > 0 ? `+${d.value.toLocaleString()} 🪙` : 'Keep it up!';
+                document.getElementById('streak-reward').innerText = d.value > 0 ? `+${d.value.toLocaleString()} 🌕` : 'Keep it up!';
             } else {
                 document.getElementById('streak-reward').innerText = `FREE ${(d.value || 'STD').toUpperCase()} PACK CREDIT!`;
             }
@@ -432,7 +432,7 @@
             document.getElementById('levelup-level').innerText = `LEVEL ${def.level}`;
             document.getElementById('levelup-title').innerText = def.badge_label || '';
             document.getElementById('levelup-reward').innerText = def.reward_type === 'coins'
-                ? `+${def.reward_value.toLocaleString()} 🪙`
+                ? `+${def.reward_value.toLocaleString()} 🌕`
                 : `FREE PACK!`;
             document.getElementById('levelup-overlay').style.display = 'flex';
         }
@@ -556,7 +556,7 @@
             lastCollected = new Date().toISOString();
             addXP(Math.floor(pending / 100));
             updateUI(); renderOfficeView(); await saveGame();
-            showToast(`💰 Collected +${pending.toLocaleString()} 🪙 from the Daycare!`);
+            showToast(`💰 Collected +${pending.toLocaleString()} 🌕 from the Daycare!`);
             const panel = document.getElementById('office-panel');
             if (panel) { panel.classList.add('collect-flash'); setTimeout(() => panel.classList.remove('collect-flash'), 600); }
         }
@@ -571,9 +571,9 @@
             const barEl     = document.getElementById('office-timer-bar');
             const lblEl     = document.getElementById('office-timer-label');
             if (!pendingEl) return;
-            pendingEl.innerText = pending.toLocaleString() + ' 🪙';
+            pendingEl.innerText = pending.toLocaleString() + ' 🌕';
             pendingEl.style.color = capped ? '#ef4444' : '#ffd700';
-            rateEl.innerText = hourly.toLocaleString(undefined, {maximumFractionDigits:1}) + ' 🪙 / hour';
+            rateEl.innerText = hourly.toLocaleString(undefined, {maximumFractionDigits:1}) + ' 🌕 / hour';
             const pct = Math.min((hours / OFFICE_CAP_HOURS) * 100, 100);
             barEl.style.width = pct + '%';
             barEl.style.background = capped ? 'linear-gradient(90deg,#ef4444,#ff6b6b)' : 'linear-gradient(90deg,#ffcb05,#ffd700)';
@@ -583,7 +583,7 @@
             const btn = document.getElementById('office-collect-btn');
             if (pending > 0) {
                 btn.className = capped ? 'office-collect-btn capped' : 'office-collect-btn ready';
-                btn.innerText = `COLLECT +${pending.toLocaleString()} 🪙`;
+                btn.innerText = `COLLECT +${pending.toLocaleString()} 🌕`;
             } else { btn.className = 'office-collect-btn empty'; btn.innerText = 'COLLECT'; }
             const _obNav = document.getElementById('office-badge-nav');
             const _ob = document.getElementById('office-badge');
@@ -600,7 +600,7 @@
                 return;
             }
             const hourlyTotal = getOfficeHourlyTotal();
-            let html = `<div class="office-roster-title">TOP ${roster.length} EARNERS &nbsp;·&nbsp; ${hourlyTotal.toLocaleString(undefined,{maximumFractionDigits:0})} 🪙 / HOUR ${capped ? '&nbsp;&nbsp;<span style="color:#ef4444">⚠ INCOME PAUSED — COLLECT NOW</span>' : ''}</div><div class="office-card-grid">`;
+            let html = `<div class="office-roster-title">TOP ${roster.length} EARNERS &nbsp;·&nbsp; ${hourlyTotal.toLocaleString(undefined,{maximumFractionDigits:0})} 🌕 / HOUR ${capped ? '&nbsp;&nbsp;<span style="color:#ef4444">⚠ INCOME PAUSED — COLLECT NOW</span>' : ''}</div><div class="office-card-grid">`;
             roster.forEach((p, i) => {
                 const hourly = getCardValue(p) * OFFICE_HOURLY_RATE;
                 const isFeatured = _featuredCardConfig?.card_id && p.id === _featuredCardConfig.card_id;
@@ -609,7 +609,7 @@
                     ${isFeatured ? '<div class="featured-star-badge">⭐ 2×</div>' : ''}
                     ${generateCardHtml(p, false)}
                     <div class="office-earn-tag ${capped ? 'capped' : ''}">
-                        <div class="office-earn-amount">${capped ? '⏸' : '+'} ${hourly.toLocaleString(undefined,{maximumFractionDigits:1})} 🪙</div>
+                        <div class="office-earn-amount">${capped ? '⏸' : '+'} ${hourly.toLocaleString(undefined,{maximumFractionDigits:1})} 🌕</div>
                         <div class="office-earn-label">${capped ? 'PAUSED' : 'PER HOUR'}</div>
                     </div>
                 </div>`;
@@ -670,7 +670,7 @@
                 const btn = document.getElementById(`btn-${pack.tier}`);
                 if (btn && names[pack.tier]) {
                     if (pack.in_store === false) { btn.style.display = 'none'; }
-                    else { btn.style.display = 'block'; btn.innerText = `${names[pack.tier]} (${pack.cost.toLocaleString()} 🪙)`; }
+                    else { btn.style.display = 'block'; btn.innerText = `${names[pack.tier]} (${pack.cost.toLocaleString()} 🌕)`; }
                 }
             });
         }
@@ -941,7 +941,7 @@
                         <div class="shop-item-name">${card?.name || item.name || 'Mystery Item'}</div>
                         <div class="shop-item-desc">${item.description || ''}</div>
                         <div class="shop-item-stock" style="color:${stockColor}">${inStock ? `${item.stock} LEFT` : 'SOLD OUT'}</div>
-                        <div class="shop-item-price">${item.price.toLocaleString()} 🪙</div>
+                        <div class="shop-item-price">${item.price.toLocaleString()} 🌕</div>
                         <button class="shop-buy-btn ${!inStock || !canAfford ? 'disabled' : ''}"
                             onclick="${inStock && canAfford ? `buyShopItem('${item.id}')` : ''}"
                             ${!inStock || !canAfford ? 'disabled' : ''}>
@@ -999,7 +999,7 @@
             // Prizes
             const prizes = data.prize_config || {};
             document.getElementById('tournament-prizes').innerHTML = Object.entries(prizes).map(([rank, coins]) =>
-                `<span class="t-prize">#${rank}: ${Number(coins).toLocaleString()} 🪙</span>`
+                `<span class="t-prize">#${rank}: ${Number(coins).toLocaleString()} 🌕</span>`
             ).join('');
         }
 
@@ -1026,7 +1026,7 @@
                     const prize = Number(t.prize_config[String(myRank)]);
                     balance += prize;
                     _tournamentCoinsClaimedIds.push(t.id);
-                    showToast(`🏆 Tournament ended! You finished #${myRank} and won ${prize.toLocaleString()} 🪙!`, 8000);
+                    showToast(`🏆 Tournament ended! You finished #${myRank} and won ${prize.toLocaleString()} 🌕!`, 8000);
                     updateUI(); saveGame();
                 }
             }
@@ -1048,7 +1048,7 @@
             list.innerHTML = `<table class="rank-table"><tr><th>Rank</th><th>Trainer</th><th>DEX Value</th><th>Prize</th></tr>` +
                 rankings.map((u, i) => {
                     const prize = data.prize_config[String(i+1)];
-                    return `<tr><td>#${i+1}</td><td>${u.username||'ANONYMOUS'}</td><td style="color:#ffd700;font-weight:900">${u.club_value.toLocaleString()} 🪙</td><td style="color:#3ecf8e">${prize ? Number(prize).toLocaleString() + ' 🪙' : '—'}</td></tr>`;
+                    return `<tr><td>#${i+1}</td><td>${u.username||'ANONYMOUS'}</td><td style="color:#ffd700;font-weight:900">${u.club_value.toLocaleString()} 🌕</td><td style="color:#3ecf8e">${prize ? Number(prize).toLocaleString() + ' 🌕' : '—'}</td></tr>`;
                 }).join('') + '</table>';
         }
 
@@ -1075,7 +1075,7 @@
                 podiumHtml += `<div class="podium-slot slot-${i+1} clickable" onclick="openSquadViewer(${i})" title="View ${user.username||'ANONYMOUS'}'s collection">
                     <div class="podium-user">#${i+1} ${user.username||'ANONYMOUS'}</div>
                     ${user.trainer_title ? `<div class="podium-title-badge">${user.trainer_title}</div>` : ''}
-                    <div class="podium-val">${user.club_value.toLocaleString()} 🪙</div>
+                    <div class="podium-val">${user.club_value.toLocaleString()} 🌕</div>
                     <div class="podium-card-mini">${user.squad && user.squad.length > 0 ? generateCardHtml(starCard, false) : '<div style="height:100px;color:#333">EMPTY</div>'}</div>
                 </div>`;
             }
@@ -1086,7 +1086,7 @@
                 tableHtml += `<tr class="rank-row-clickable" onclick="openSquadViewer(${i})">
                     <td>#${i+1}</td><td>${u.username||'ANONYMOUS'}</td>
                     <td><span class="rank-level-badge">LV${u.level||1}</span></td>
-                    <td style="color:#ffd700;font-weight:bold;">${u.club_value.toLocaleString()} 🪙</td>
+                    <td style="color:#ffd700;font-weight:bold;">${u.club_value.toLocaleString()} 🌕</td>
                     <td class="view-col">VIEW</td></tr>`;
             }
             list.innerHTML = tableHtml + '</table>';
@@ -1097,7 +1097,7 @@
             const user = _lbData[idx];
             if (!user) return;
             document.getElementById('sv-title').innerText = (user.username||'ANONYMOUS') + "'S COLLECTION";
-            document.getElementById('sv-subtitle').innerText = `${(user.squad||[]).length} cards · DEX Value: ${user.club_value.toLocaleString()} 🪙`;
+            document.getElementById('sv-subtitle').innerText = `${(user.squad||[]).length} cards · DEX Value: ${user.club_value.toLocaleString()} 🌕`;
             const grid = document.getElementById('sv-grid');
             if (!user.squad || user.squad.length === 0) { grid.innerHTML = '<div class="sv-empty">This trainer has no cards yet.</div>'; }
             else { grid.innerHTML = [...user.squad].sort((a,b) => getCardValue(b)-getCardValue(a)).map(p => generateCardHtml(p,false)).join(''); }
@@ -1142,7 +1142,7 @@
         </div>
         <div style="text-align:right;">
             <div style="font-size:0.5rem;color:${isFullArt?'#ddd':'#555'};letter-spacing:1px;margin-bottom:2px;">VALUE</div>
-            <div style="font-size:0.95rem;font-weight:900;line-height:1;">${val.toLocaleString()} 🪙</div>
+            <div style="font-size:0.95rem;font-weight:900;line-height:1;">${val.toLocaleString()} 🌕</div>
         </div>
     </div>
     ${p.isSuperHolo ? '<div class="holo-sheen"></div>' : ''}
@@ -1160,9 +1160,9 @@
             _modalCurrentId = p.instanceId || null;
             const val = getCardValue(p);
             document.getElementById('modal-card-render').innerHTML = generateCardHtml(p, true, 'zoom');
-            document.getElementById('val-orig').innerText  = val.toLocaleString() + " 🪙";
+            document.getElementById('val-orig').innerText  = val.toLocaleString() + " 🌕";
             const sellVal = getSellValue(p);
-            document.getElementById('val-sell').innerText  = p.instanceId ? sellVal.toLocaleString() + " 🪙" : 'NOT OWNED';
+            document.getElementById('val-sell').innerText  = p.instanceId ? sellVal.toLocaleString() + " 🌕" : 'NOT OWNED';
             document.getElementById('val-date').innerText  = p.collectedDate || "Not in Collection";
             const sellBtn = document.getElementById('modal-sell-btn');
             const favBtn  = document.getElementById('modal-fav-btn');
@@ -1174,7 +1174,7 @@
                 scBtn.innerText = p.isShowcase ? '🏆 CURRENT SHOWCASE' : '🏆 SET AS SHOWCASE';
                 if (p.isFavorite) { sellBtn.disabled = true; sellBtn.innerText = '⭐ UNFAVOURITE TO SELL'; }
                 else if (_lockedCardIds.has(p.instanceId)) { sellBtn.disabled = true; sellBtn.innerText = '🔒 LOCKED IN TRADE'; }
-                else { sellBtn.disabled = false; sellBtn.innerText = `QUICK SELL (+${sellVal.toLocaleString()} 🪙)`; sellBtn.onclick = () => { if(confirm(`Sell ${p.name}?`)) finalizeSale(p.instanceId); }; }
+                else { sellBtn.disabled = false; sellBtn.innerText = `QUICK SELL (+${sellVal.toLocaleString()} 🌕)`; sellBtn.onclick = () => { if(confirm(`Sell ${p.name}?`)) finalizeSale(p.instanceId); }; }
             }
             document.getElementById('modal-overlay').style.display = 'flex';
         }
@@ -1361,7 +1361,7 @@
             const selected = mySquad.filter(p => multiSelectIds.has(p.instanceId));
             const sellable = selected.filter(p => !p.isFavorite && !_lockedCardIds.has(p.instanceId));
             const total = sellable.reduce((sum, p) => sum + getSellValue(p), 0);
-            countEl.innerText = multiSelectIds.size + ' SELECTED · ' + total.toLocaleString() + ' 🪙';
+            countEl.innerText = multiSelectIds.size + ' SELECTED · ' + total.toLocaleString() + ' 🌕';
         }
 
         function toggleMultiSelect() {
@@ -1402,14 +1402,14 @@
             }
             const totalValue = toSell.reduce((sum, p) => sum + getSellValue(p), 0);
             const skipMsg = skipped > 0 ? ' (' + skipped + ' skipped — favourited or locked)' : '';
-            if (!confirm('Sell ' + toSell.length + ' cards for ' + totalValue.toLocaleString() + ' 🪙?' + skipMsg)) return;
+            if (!confirm('Sell ' + toSell.length + ' cards for ' + totalValue.toLocaleString() + ' 🌕?' + skipMsg)) return;
             toSell.forEach(p => {
                 balance += getSellValue(p);
                 mySquad = mySquad.filter(c => c.instanceId !== p.instanceId);
             });
             exitMultiSelectMode();
             updateUI(); renderSquad(); await saveGame();
-            showToast('💰 Sold ' + toSell.length + ' cards for +' + totalValue.toLocaleString() + ' 🪙!');
+            showToast('💰 Sold ' + toSell.length + ' cards for +' + totalValue.toLocaleString() + ' 🌕!');
         }
 
         function exitMultiSelect() {
@@ -1481,7 +1481,7 @@
                         '<div class="challenge-bar-wrap"><div class="challenge-bar" style="width:' + pct + '%"></div></div>' +
                         '<div class="challenge-progress">' + Math.min(p.count, c.target) + ' / ' + c.target + '</div>' +
                         '</div>' +
-                        '<div class="challenge-reward">+' + c.reward.toLocaleString() + ' 🪙</div>' +
+                        '<div class="challenge-reward">+' + c.reward.toLocaleString() + ' 🌕</div>' +
                         (ready ? '<button class="challenge-claim-btn" onclick="claimChallenge(\'' + c.id + '\')">' + 'CLAIM</button>' : '') +
                         (done ? '<div class="challenge-claimed">✓</div>' : '') +
                         '</div>';
@@ -1517,7 +1517,7 @@
             balance += def.reward;
             addXP(20);
             updateUI(); renderDailyChallenges(); await saveGame();
-            showToast(`🎉 Challenge complete! +${def.reward.toLocaleString()} 🪙`);
+            showToast(`🎉 Challenge complete! +${def.reward.toLocaleString()} 🌕`);
         }
 
         // ─── DAILY REWARD ─────────────────────────────────────────────────────────
@@ -1535,7 +1535,7 @@
                 btn.className = 'daily-collect-btn done'; btn.innerText = 'COLLECTED';
             } else {
                 banner.className = 'daily-collect-banner ready';
-                sub.innerText = `Claim your free ${Math.max(150, _trainerLevel * 150).toLocaleString()} 🪙 daily reward!`;
+                sub.innerText = `Claim your free ${Math.max(150, _trainerLevel * 150).toLocaleString()} 🌕 daily reward!`;
                 btn.className = 'daily-collect-btn ready'; btn.innerText = 'COLLECT';
             }
         }
@@ -1547,7 +1547,7 @@
             balance += DAILY_REWARD;
             await _supabase.from('user_saves').upsert({ user_id: currentUser.id, last_daily_collect: new Date().toISOString() }, { onConflict: 'user_id' });
             updateUI(); initDailyReward();
-            showToast(`🎁 Daily reward claimed! +${DAILY_REWARD.toLocaleString()} 🪙 (Level ${_trainerLevel} bonus)`);
+            showToast(`🎁 Daily reward claimed! +${DAILY_REWARD.toLocaleString()} 🌕 (Level ${_trainerLevel} bonus)`);
         }
 
         // ─── SHARE COLLECTION ─────────────────────────────────────────────────────
@@ -1578,7 +1578,7 @@
             if (!data) { showToast('Trainer not found.'); return false; }
             document.getElementById('view-landing').style.display = 'none';
             document.getElementById('sv-title').innerText    = (data.username || viewUser).toUpperCase() + "'S COLLECTION";
-            document.getElementById('sv-subtitle').innerText = `${(data.squad||[]).length} cards · DEX Value: ${(data.club_value||0).toLocaleString()} 🪙`;
+            document.getElementById('sv-subtitle').innerText = `${(data.squad||[]).length} cards · DEX Value: ${(data.club_value||0).toLocaleString()} 🌕`;
             const sorted = [...(data.squad||[])].sort((a,b) => getCardValue(b)-getCardValue(a));
             document.getElementById('sv-grid').innerHTML = sorted.length > 0 ? sorted.map(p => generateCardHtml(p,false)).join('') : '<div class="sv-empty">No cards yet.</div>';
             document.getElementById('squad-viewer-modal').style.display = 'flex';
@@ -1717,7 +1717,7 @@
                 html += '<div class="trade-want-val">' + getWantDescription(t) + '</div>';
                 html += '<div class="trade-want-sub" style="color:' + statusColor + ';font-weight:900;">' + statusLabel + '</div>';
                 if (isPending && t.receiver_card) {
-                    html += '<div class="trade-offer-preview">They offer: <strong>' + t.receiver_card.name + '</strong> (' + getCardValue(t.receiver_card).toLocaleString() + ' 🪙)</div>';
+                    html += '<div class="trade-offer-preview">They offer: <strong>' + t.receiver_card.name + '</strong> (' + getCardValue(t.receiver_card).toLocaleString() + ' 🌕)</div>';
                 }
                 html += '</div><div class="trade-actions">';
                 if (isPending) html += '<button class="trade-btn accept" onclick="showOwnerReviewModal(\'' + t.id + '\')">REVIEW OFFER</button>';
@@ -2041,7 +2041,7 @@
             window._lastBattleHighStakes = highStakes;
             const ENTRY = highStakes ? 5000 : 500;
             const WIN_BONUS = highStakes ? 5000 : 500;
-            if (balance < ENTRY) { showToast(`⚠ You need ${ENTRY.toLocaleString()} 🪙 to enter.`); return; }
+            if (balance < ENTRY) { showToast(`⚠ You need ${ENTRY.toLocaleString()} 🌕 to enter.`); return; }
             if (!_stdPackData) await prefetchStdPack();
             balance -= ENTRY; updateUI(); arenaShowPhase('arena-rolling');
             const labels = ['DRAWING CARDS...','CHECKING DEX...','CHOOSING POKÉMON...','BATTLE STARTING...'];
@@ -2063,7 +2063,7 @@
             let bannerClass, bannerText, msg;
             if (pVal > bVal) {
                 bannerClass = 'win'; bannerText = 'VICTORY';
-                msg = `Your ${pCard.name} (${pVal.toLocaleString()} 🪙) beats Bot's ${bCard.name} (${bVal.toLocaleString()} 🪙). Card kept + ${WIN_BONUS.toLocaleString()} 🪙!`;
+                msg = `Your ${pCard.name} (${pVal.toLocaleString()} 🌕) beats Bot's ${bCard.name} (${bVal.toLocaleString()} 🌕). Card kept + ${WIN_BONUS.toLocaleString()} 🌕!`;
                 balance += WIN_BONUS; mySquad.push(pCard); renderSquad();
                 addXP(25); logActivity('won_battle', pCard);
                 tickChallenge('keep_cards', 1);
@@ -2072,7 +2072,7 @@
                 msg = `Both drew equal value. Entry fee refunded.`; balance += ENTRY;
             } else {
                 bannerClass = 'loss'; bannerText = 'DEFEAT';
-                msg = `Bot's ${bCard.name} (${bVal.toLocaleString()} 🪙) beats your ${pCard.name} (${pVal.toLocaleString()} 🪙). Card burned.`;
+                msg = `Bot's ${bCard.name} (${bVal.toLocaleString()} 🌕) beats your ${pCard.name} (${pVal.toLocaleString()} 🌕). Card burned.`;
             }
             updateUI(); await saveGame();
             document.getElementById('arena-banner').className = 'arena-banner ' + bannerClass;
@@ -2082,7 +2082,7 @@
             document.getElementById('arena-card-player').innerHTML = `<div class="arena-flipin">${generateCardHtml(pCard, false)}</div>`;
             document.getElementById('arena-card-bot').innerHTML    = `<div class="arena-flipin" style="animation-delay:0.18s">${generateCardHtml(bCard, false)}</div>`;
             const pValEl = document.getElementById('arena-val-player'), bValEl = document.getElementById('arena-val-bot');
-            pValEl.innerText = pVal.toLocaleString() + ' 🪙'; bValEl.innerText = bVal.toLocaleString() + ' 🪙';
+            pValEl.innerText = pVal.toLocaleString() + ' 🌕'; bValEl.innerText = bVal.toLocaleString() + ' 🌕';
             pValEl.style.color = pVal > bVal ? '#3ecf8e' : (pVal===bVal ? '#ffd700' : '#ef4444');
             bValEl.style.color = bVal > pVal ? '#3ecf8e' : (pVal===bVal ? '#ffd700' : '#555566');
             document.getElementById('arena-result-msg').innerText = msg;
@@ -2281,10 +2281,10 @@
             const cv = [...mySquad].sort((a,b) => getCardValue(b)-getCardValue(a)).slice(0,OFFICE_TOP_N).reduce((sum,p) => sum+getCardValue(p), 0);
             const rares = mySquad.filter(p => ['ultra rare','secret rare','limited','1st edition'].includes((p.rarity||'').toLowerCase())).length;
             document.getElementById('profile-stats-grid').innerHTML = [
-                { label: 'COLLECTION VALUE', val: cv.toLocaleString() + ' 🪙' },
+                { label: 'COLLECTION VALUE', val: cv.toLocaleString() + ' 🌕' },
                 { label: 'RARE CARDS', val: rares },
-                { label: 'COINS', val: balance.toLocaleString() + ' 🪙' },
-                { label: 'HOURLY RATE', val: Math.floor(getOfficeHourlyTotal()).toLocaleString() + ' 🪙/hr' },
+                { label: 'COINS', val: balance.toLocaleString() + ' 🌕' },
+                { label: 'HOURLY RATE', val: Math.floor(getOfficeHourlyTotal()).toLocaleString() + ' 🌕/hr' },
                 { label: 'LOGIN STREAK', val: (_loginStreak || 0) + ' days 🔥' },
                 { label: 'TRAINER TITLE', val: _trainerTitle || 'ROOKIE' },
             ].map(s => '<div class="pstat-grid-item"><div class="pstat-grid-val">' + s.val + '</div><div class="pstat-grid-lbl">' + s.label + '</div></div>').join('');
@@ -2397,7 +2397,7 @@
                 .select('username, squad, club_value, level, trainer_title').ilike('username', username).single();
             if (!data) return;
             document.getElementById('sv-title').innerText = (data.username||username).toUpperCase() + "\'S COLLECTION";
-            document.getElementById('sv-subtitle').innerText = (data.squad||[]).length + ' cards · LV' + (data.level||1) + ' · ' + (data.club_value||0).toLocaleString() + ' 🪙';
+            document.getElementById('sv-subtitle').innerText = (data.squad||[]).length + ' cards · LV' + (data.level||1) + ' · ' + (data.club_value||0).toLocaleString() + ' 🌕';
             const grid = document.getElementById('sv-grid');
             grid.innerHTML = data.squad && data.squad.length > 0
                 ? [...data.squad].sort((a,b) => getCardValue(b)-getCardValue(a)).map(p => generateCardHtml(p,false)).join('')
