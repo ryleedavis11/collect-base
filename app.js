@@ -737,27 +737,125 @@
             await animatePack(currentPull);
         }
 
+        function spawnParticles(count, colors, size = 8) {
+            for (let i = 0; i < count; i++) {
+                const p = document.createElement('div');
+                p.className = 'pack-particle';
+                p.style.cssText = `
+                    left:${20 + Math.random()*60}vw;
+                    top:${10 + Math.random()*60}vh;
+                    width:${size + Math.random()*size}px;
+                    height:${size + Math.random()*size}px;
+                    background:${colors[Math.floor(Math.random()*colors.length)]};
+                    animation-delay:${Math.random()*0.6}s;
+                    animation-duration:${0.8 + Math.random()*0.8}s;
+                `;
+                document.body.appendChild(p);
+                setTimeout(() => p.remove(), 2000);
+            }
+        }
+
+        function spawnShockwave(color1, color2) {
+            const s = document.createElement('div');
+            s.className = 'pack-shockwave';
+            s.style.background = `radial-gradient(circle, ${color1} 0%, ${color2} 40%, transparent 70%)`;
+            document.body.appendChild(s);
+            setTimeout(() => s.remove(), 1200);
+        }
+
+        function spawnLightning(count) {
+            for (let i = 0; i < count; i++) {
+                const l = document.createElement('div');
+                l.className = 'pack-lightning';
+                l.style.cssText = `
+                    left:${Math.random()*100}vw;
+                    animation-delay:${Math.random()*0.4}s;
+                    height:${30 + Math.random()*50}vh;
+                    transform:rotate(${-20 + Math.random()*40}deg);
+                `;
+                document.body.appendChild(l);
+                setTimeout(() => l.remove(), 1500);
+            }
+        }
+
         async function animatePack(pulledPlayer) {
             const packVisual = document.getElementById('pack-visual').querySelector('.pack-container');
             const rarity = (pulledPlayer.rarity || '').toLowerCase();
-            if (rarity === 'limited') {
+            const rating = pulledPlayer.rating || 0;
+            const isHolo = pulledPlayer.isSuperHolo;
+
+            // ── TIER 1: rating 1-4 — no effect, instant reveal ──────────────────
+            if (rating <= 4 && !isHolo && rarity !== 'limited' && rarity !== '1st edition') {
+                // no animation
+
+            // ── TIER 2: rating 5-7 — light shake ────────────────────────────────
+            } else if (rating <= 7 && !isHolo && rarity !== 'limited' && rarity !== '1st edition') {
+                packVisual.classList.add('suspense-shake');
+                await new Promise(r => setTimeout(r, 600));
+                packVisual.classList.remove('suspense-shake');
+
+            // ── TIER 3: rating 8-9 or holo — epic effect ────────────────────────
+            } else if ((rating >= 8 && rating <= 9 || isHolo) && rarity !== 'limited' && rarity !== '1st edition') {
+                packVisual.classList.add('suspense-shake-epic');
+                await new Promise(r => setTimeout(r, 400));
+                // Shockwave burst
+                spawnShockwave('rgba(255,203,5,0.6)', 'rgba(255,100,0,0.3)');
+                spawnParticles(30, ['#ffcb05','#ff8c00','#fff','#ffd700','#ff4500'], 10);
+                // Flash
+                const flash = document.createElement('div');
+                flash.className = 'walkout-flash-gold';
+                document.body.appendChild(flash);
+                setTimeout(() => flash.remove(), 1200);
+                await new Promise(r => setTimeout(r, 800));
+                packVisual.classList.remove('suspense-shake-epic');
+
+            // ── TIER 4: rating 10 — insane effect ───────────────────────────────
+            } else if (rating === 10 && rarity !== 'limited') {
+                packVisual.classList.add('suspense-shake-epic');
+                await new Promise(r => setTimeout(r, 300));
+                spawnShockwave('rgba(255,255,255,0.9)', 'rgba(255,203,5,0.5)');
+                spawnLightning(6);
+                spawnParticles(60, ['#fff','#ffcb05','#ffd700','#fffacd','#ff8c00','#00eeff'], 12);
+                // Screen shake
+                document.body.classList.add('screen-shake-intense');
+                setTimeout(() => document.body.classList.remove('screen-shake-intense'), 800);
+                const flash1 = document.createElement('div');
+                flash1.className = 'walkout-flash-white';
+                document.body.appendChild(flash1);
+                setTimeout(() => flash1.remove(), 1800);
+                await new Promise(r => setTimeout(r, 1200));
+                packVisual.classList.remove('suspense-shake-epic');
+
+            // ── TIER 5: LIMITED — whole screen goes crazy ────────────────────────
+            } else if (rarity === 'limited') {
                 packVisual.classList.add('suspense-shake-limited');
-                await new Promise(r => setTimeout(r, 1800));
-                const flash = document.createElement('div'); flash.className = 'limited-flash'; document.body.appendChild(flash); setTimeout(() => flash.remove(), 2000);
+                await new Promise(r => setTimeout(r, 500));
+                // Full screen chaos
+                document.body.classList.add('screen-shake-limited');
+                spawnShockwave('rgba(255,0,128,0.8)', 'rgba(128,0,255,0.5)');
+                spawnLightning(10);
+                spawnParticles(80, ['#ff00ff','#ff0080','#8000ff','#00ffff','#fff','#ffcb05'], 14);
+                // Multiple flashes
+                const lf1 = document.createElement('div'); lf1.className = 'limited-flash-v2'; document.body.appendChild(lf1); setTimeout(() => lf1.remove(), 2500);
+                await new Promise(r => setTimeout(r, 600));
+                spawnParticles(60, ['#fff','#ffcb05','#ff00ff'], 8);
+                await new Promise(r => setTimeout(r, 800));
+                document.body.classList.remove('screen-shake-limited');
+                packVisual.classList.remove('suspense-shake-limited');
+
+            // ── 1st EDITION ──────────────────────────────────────────────────────
             } else if (rarity === '1st edition') {
                 packVisual.classList.add('suspense-shake-promo');
-                await new Promise(r => setTimeout(r, 1200));
-                const flash = document.createElement('div'); flash.className = 'promo-flash'; document.body.appendChild(flash); setTimeout(() => flash.remove(), 1200);
-            } else if (pulledPlayer.isSuperHolo || rarity === 'ultra rare' || rarity === 'secret rare') {
-                packVisual.classList.add('suspense-shake');
-                await new Promise(r => setTimeout(r, 900));
-                const flash = document.createElement('div'); flash.className = 'walkout-flash'; document.body.appendChild(flash); setTimeout(() => flash.remove(), 1500);
-            } else {
-                packVisual.classList.add('suspense-shake');
-                await new Promise(r => setTimeout(r, 500));
+                await new Promise(r => setTimeout(r, 400));
+                spawnShockwave('rgba(0,188,212,0.7)', 'rgba(0,100,200,0.3)');
+                spawnParticles(40, ['#00bcd4','#fff','#0080ff','#00eeff'], 10);
+                const pf = document.createElement('div'); pf.className = 'promo-flash'; document.body.appendChild(pf); setTimeout(() => pf.remove(), 1200);
+                await new Promise(r => setTimeout(r, 800));
+                packVisual.classList.remove('suspense-shake-promo');
             }
-            packVisual.classList.remove('suspense-shake','suspense-shake-promo','suspense-shake-limited');
+
             if (rarity === 'limited' && pulledPlayer.isLimited) broadcastLimitedPull(pulledPlayer);
+
             const val = getCardValue(currentPull);
             const reveal = document.getElementById('pack-reveal');
             reveal.innerHTML = generateCardHtml(currentPull, false);
@@ -1954,6 +2052,9 @@
             clearInterval(lblInterval);
             if (!pCard || !bCard) { balance += ENTRY; updateUI(); arenaToLobby(); showToast('❌ Connection error. Entry fee refunded.'); return; }
             pCard.instanceId = 'inst_' + Date.now(); pCard.collectedDate = new Date().toLocaleDateString();
+            // Apply holo odds from game_settings same as pack opening
+            if (pCard.rating >= holoConfig.min_rating && Math.random() < holoConfig.chance) pCard.isSuperHolo = true;
+            if (bCard.rating >= holoConfig.min_rating && Math.random() < holoConfig.chance) bCard.isSuperHolo = true;
             const pVal = getBattleValue(pCard, bCard), bVal = getBattleValue(bCard, pCard);
             const pType = getCardType(pCard), bType = getCardType(bCard);
             let typeAdvMsg = '';
