@@ -1,7 +1,7 @@
 // ─── CONSTANTS ───────────────────────────────────────────────────────────
         const SELL_RATE = 0.50;
         const HOLO_MULTIPLIER = 3;
-        const OFFICE_HOURLY_RATE = 0.01;
+        const OFFICE_HOURLY_RATE = 0.015;
         const OFFICE_CAP_HOURS = 6;
         const OFFICE_TOP_N = 12;
         const PACK_IMAGES = {
@@ -585,7 +585,10 @@
                 btn.className = capped ? 'office-collect-btn capped' : 'office-collect-btn ready';
                 btn.innerText = `COLLECT +${pending.toLocaleString()} 🪙`;
             } else { btn.className = 'office-collect-btn empty'; btn.innerText = 'COLLECT'; }
-            document.getElementById('office-badge').style.display = pending > 0 ? 'flex' : 'none';
+            const _obNav = document.getElementById('office-badge-nav');
+            const _ob = document.getElementById('office-badge');
+            if (_ob) _ob.style.display = pending > 0 ? 'flex' : 'none';
+            if (_obNav) _obNav.style.display = pending > 0 ? 'flex' : 'none';
         }
 
         function renderOfficeRoster() {
@@ -673,9 +676,9 @@
         }
 
         async function openPack() {
-            // Rate limit: prevent opening packs faster than once every 3 seconds
+            // Rate limit: prevent opening packs faster than once every 1 second
             const now = Date.now();
-            if (window._lastPackOpen && (now - window._lastPackOpen) < 3000) {
+            if (window._lastPackOpen && (now - window._lastPackOpen) < 1000) {
                 showToast('Slow down!'); return;
             }
             window._lastPackOpen = now;
@@ -716,8 +719,10 @@
                 let cumulative = 0, rule = rules[rules.length - 1];
                 for (const r of rules) { cumulative += r.chance; if (roll < cumulative) { rule = r; break; } }
                 const { data } = await _supabase.from('collection').select('*')
-                    .gte('rating', rule.min).lte('rating', rule.max)
-                    .neq('rarity', 'Limited').neq('rarity', '1st edition').eq('in_packs', true);
+                .gte('rating', rule.min).lte('rating', rule.max)
+                .not('rarity', 'ilike', 'limited')
+                .not('rarity', 'ilike', '1st edition')
+                .eq('in_packs', true);
                 let poolData = (data && data.length > 0) ? data : (await _supabase.from('collection').select('*').limit(20)).data;
                 pulledPlayer = poolData[Math.floor(Math.random() * poolData.length)];
             }
@@ -1893,11 +1898,23 @@
         function arenaShowPhase(id) { document.querySelectorAll('.arena-phase').forEach(p => p.classList.remove('active-phase')); document.getElementById(id).classList.add('active-phase'); }
 
         async function getArenaCard(highStakes = false) {
+            // ARENA SAFE RARITIES - Limited and 1st Edition NEVER appear in arena
+            const ARENA_BLOCKED = ['limited', '1st edition'];
+            function isArenaAllowed(card) {
+                return !ARENA_BLOCKED.includes((card.rarity || '').toLowerCase().trim());
+            }
+
             const pack = highStakes ? _eltPackData : _stdPackData;
             if (!pack || !pack.odds_config || pack.odds_config.length === 0) {
                 const minRating = highStakes ? 6 : 4;
-                const { data } = await _supabase.from('collection').select('*').gte('rating', minRating).lte('rating', 10).neq('rarity','Limited').neq('rarity','1st edition').eq('in_packs', true).limit(50);
-                return data[Math.floor(Math.random() * data.length)];
+                const { data } = await _supabase.from('collection').select('*')
+                    .gte('rating', minRating).lte('rating', 10)
+                    .not('rarity', 'ilike', 'limited')
+                    .not('rarity', 'ilike', '1st edition')
+                    .eq('in_packs', true).limit(50);
+                if (!data || data.length === 0) return null;
+                const safe = data.filter(isArenaAllowed);
+                return safe.length > 0 ? safe[Math.floor(Math.random() * safe.length)] : null;
             }
             const roll = Math.random() * 100;
             const rules = pack.odds_config;
@@ -1905,10 +1922,16 @@
             for (const r of rules) { cumulative += r.chance; if (roll < cumulative) { rule = r; break; } }
             const { data } = await _supabase.from('collection').select('*')
                 .gte('rating', rule.min).lte('rating', rule.max)
-                .neq('rarity', 'Limited').neq('rarity', '1st edition').eq('in_packs', true);
+                .not('rarity', 'ilike', 'limited')
+                .not('rarity', 'ilike', '1st edition')
+                .eq('in_packs', true);
             if (!data || data.length === 0) return null;
-            return data[Math.floor(Math.random() * data.length)];
+            // Triple safety: also filter client-side in case any slip through
+            const safe = data.filter(isArenaAllowed);
+            if (safe.length === 0) return null;
+            return safe[Math.floor(Math.random() * safe.length)];
         }
+        
 
         function getBattleValue(attacker, defender) {
             let val = getCardValue(attacker);

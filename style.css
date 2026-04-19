@@ -206,13 +206,7 @@ nav button.active { color: var(--accent); border-bottom: 2px solid var(--accent)
 #logout-btn { color: var(--danger) !important; font-size: 0.72rem !important; }
 #logout-btn:hover { color: #ff7777 !important; }
 #nav-office { position: relative; }
-.office-badge {
-    position: absolute; top: -6px; right: -14px;
-    background: var(--gold); color: black; border-radius: 50%;
-    width: 16px; height: 16px; font-size: 0.55rem; font-weight: 900;
-    display: none; align-items: center; justify-content: center;
-    animation: pulseBadge 1.5s infinite;
-}
+.office-badge { display:inline-flex; align-items:center; justify-content:center; background:#ffcb05; color:#111; border-radius:50%; width:16px; height:16px; font-size:0.55rem; font-weight:900; margin-left:4px; animation:pulseBadge 1.5s infinite; }
 #nav-trade { position: relative; }
 .trade-badge {
     position: absolute; top: -6px; right: -14px;

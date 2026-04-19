@@ -27,7 +27,7 @@
                 <div class="landing-tagline">COLLECT · TRADE · BATTLE · DOMINATE</div>
                 <div class="landing-features">
                     <div class="landing-feat">🎴 Open packs and pull rare cards</div>
-                    <div class="landing-feat">💰 Earn passive income from your Daycare</div>
+                    <div class="landing-feat">💰 Earn passive income from your Collection Center</div>
                     <div class="landing-feat">🔄 Trade cards with other trainers</div>
                     <div class="landing-feat">⚔ Battle in the arena to win big</div>
                     <div class="landing-feat">🏆 Climb the global rankings</div>
@@ -83,14 +83,16 @@
                 <div class="nav-dropdown-menu" id="nav-squad-menu">
                     <button onclick="showView('team'); closeNavDropdown()">My Collection (<span class="team-count-menu">0</span>)</button>
                     <div class="menu-divider"></div>
+                    <button onclick="showView('office'); closeNavDropdown()" style="position:relative;">
+                        🏠 Collection Center <span class="office-badge" id="office-badge-nav" style="position:relative;top:auto;right:auto;margin-left:4px;">$</span>
+                    </button>
+                    <div class="menu-divider"></div>
                     <button onclick="showView('exchanges'); closeNavDropdown()" style="position:relative;">Exchanges <span id="exchange-badge" class="exchange-badge" style="display:none;">0</span></button>
                     <div class="menu-divider"></div>
                     <button onclick="openShareModal(); closeNavDropdown()">📤 Share My Collection</button>
                 </div>
             </div>
-            <button id="nav-office" onclick="showView('office')">
-                DAYCARE <span class="office-badge" id="office-badge">$</span>
-            </button>
+
             <button id="nav-shop" onclick="showView('shop')">SHOP</button>
             <button id="nav-arena" onclick="showView('arena')">BATTLE</button>
             <button id="nav-rank" onclick="showView('rank')">RANKINGS</button>
@@ -146,7 +148,7 @@
             <div class="home-header-right">
                 <div id="streak-display" class="streak-display" style="display:none;"></div>
                 <div id="home-daycare-alert" style="display:none;" class="home-daycare-alert-sm" onclick="showView('office')">
-                    ⚠ DAYCARE CAPPED
+                    ⚠ COLLECTION CENTER CAPPED
                 </div>
             </div>
         </div>
@@ -316,17 +318,17 @@
         <div class="squad-playtime-footer" id="squad-playtime-footer"></div>
     </div>
 
-    <!-- ─── DAYCARE VIEW ─── -->
+    <!-- ─── COLLECTION CENTER VIEW ─── -->
     <div id="view-office" class="view">
         <div class="view-header">
-            <h2 class="view-title">🏠 DAYCARE CENTER</h2>
-            <p class="view-sub">Your top Pokémon earn passive income while you're away</p>
+            <h2 class="view-title">🏠 COLLECTION CENTER</h2>
+            <p class="view-sub">Your top cards earn passive income while you're away</p>
         </div>
         <!-- Featured card banner -->
         <div id="featured-card-banner" style="display:none;" class="featured-banner">
             <span class="featured-banner-icon">⭐</span>
             <div><div class="featured-banner-title" id="featured-banner-title">FEATURED CARD THIS WEEK</div>
-            <div class="featured-banner-sub" id="featured-banner-sub">Earns 2× daycare income</div></div>
+            <div class="featured-banner-sub" id="featured-banner-sub">Earns 2× Collection Center income</div></div>
         </div>
         <div class="office-panel" id="office-panel">
             <div class="office-earn-display">
@@ -693,7 +695,7 @@
                     <div class="ob-step-num">3</div>
                     <div class="ob-step-icon">💰</div>
                     <div class="ob-step-title">EARN PASSIVE INCOME</div>
-                    <div class="ob-step-desc">Your top 12 cards earn coins automatically in the Daycare. Check back every 6 hours to collect. The better your cards, the more you earn.</div>
+                    <div class="ob-step-desc">Your top 12 cards earn coins automatically in the Collection Center. Check back every 6 hours to collect. The better your cards, the more you earn.</div>
                 </div>
                 <div class="onboarding-step" id="ob-step-4">
                     <div class="ob-step-num">4</div>
