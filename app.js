@@ -43,6 +43,8 @@
         let _tournamentCoinsClaimedIds = [];
         let _levelDefs = [];
         let _activityChannel = null;
+        let _friends = [];
+        let _friendRequests = [];
 
         // ─── TOAST ───────────────────────────────────────────────────────────────
         function showToast(msg, duration = 4000) {
@@ -142,14 +144,14 @@
                 currentUser = sessionData.session?.user || data.user;
                 const { error: dbError } = await _supabase.from('user_saves').upsert({
                     user_id: currentUser.id, email: currentUser.email, username,
-                    balance: 1500, squad: [], club_value: 0,
+                    balance: 3000, squad: [], club_value: 0,
                     last_collected: new Date().toISOString(),
                     login_streak: 1, last_login_date: new Date().toISOString(),
                     xp: 0, level: 1, trainer_title: 'ROOKIE',
                     updated_at: new Date().toISOString()
                 }, { onConflict: 'user_id' });
                 if (dbError) { hideLoading(); setAuthError("Database error: " + dbError.message); return; }
-                balance = 1500; mySquad = []; lastCollected = new Date().toISOString();
+                balance = 3000; mySquad = []; lastCollected = new Date().toISOString();
                 hideLoading(); enterGame(true);
             }
         }
@@ -190,6 +192,7 @@
             setupPresence();
             showView('home');
             updateWelcomeMsg(isNew);
+            if (isNew) setTimeout(() => showOnboarding(), 800);
             initMarquee();
             startOfficeTicker();
             startTradePoll();
@@ -1124,7 +1127,8 @@
             if (id === 'arena')     arenaToLobby();
             if (id === 'slots')     { resetUI(); closeCatalog(); initDailyReward(); }
             if (id === 'shop')      loadShop();
-            if (id === 'home')      { updateStreakDisplay(); renderDailyChallenges(); }
+            if (id === 'home')      { updateStreakDisplay(); renderDailyChallenges(); updateHomeScreen(); }
+            if (id === 'profile')   loadProfile();
             if (id !== 'team')      exitMultiSelect();
         }
 
@@ -1352,28 +1356,47 @@
 
         function renderDailyChallenges() {
             initDailyChallengesState();
-            const panel = document.getElementById('daily-challenges-panel');
-            if (!panel) return;
             const prog = _dailyChallenges.progress;
             const allDone = CHALLENGE_DEFINITIONS.every(c => prog[c.id]?.claimed);
-            panel.innerHTML = `
-                <div class="challenges-header">📋 DAILY CHALLENGES</div>
-                ${allDone ? '<div class="challenges-all-done">🎉 ALL CHALLENGES COMPLETE! Come back tomorrow.</div>' : ''}
-                ${CHALLENGE_DEFINITIONS.map(c => {
+            const claimedCount = CHALLENGE_DEFINITIONS.filter(c => prog[c.id]?.claimed).length;
+
+            // Update badge on button
+            const badge = document.getElementById('challenges-progress-badge');
+            if (badge) {
+                badge.innerText = claimedCount + '/' + CHALLENGE_DEFINITIONS.length;
+                badge.className = 'challenges-badge' + (allDone ? ' done' : (claimedCount > 0 ? ' partial' : ''));
+            }
+
+            const challengesHtml = (allDone ? '<div class="challenges-all-done">🎉 ALL COMPLETE! Come back tomorrow.</div>' : '') +
+                CHALLENGE_DEFINITIONS.map(c => {
                     const p = prog[c.id] || { count: 0, claimed: false };
                     const pct = Math.min((p.count / c.target) * 100, 100);
                     const done = p.claimed, ready = !done && p.count >= c.target;
-                    return `<div class="challenge-row ${done ? 'done' : (ready ? 'ready' : '')}">
-                        <div class="challenge-info">
-                            <div class="challenge-label">${c.label}</div>
-                            <div class="challenge-bar-wrap"><div class="challenge-bar" style="width:${pct}%"></div></div>
-                            <div class="challenge-progress">${Math.min(p.count, c.target)} / ${c.target}</div>
-                        </div>
-                        <div class="challenge-reward">+${c.reward.toLocaleString()} 🪙</div>
-                        ${ready ? `<button class="challenge-claim-btn" onclick="claimChallenge('${c.id}')">CLAIM</button>` : ''}
-                        ${done ? `<div class="challenge-claimed">✓</div>` : ''}
-                    </div>`;
-                }).join('')}`;
+                    return '<div class="challenge-row ' + (done ? 'done' : (ready ? 'ready' : '')) + '">' +
+                        '<div class="challenge-info">' +
+                        '<div class="challenge-label">' + c.label + '</div>' +
+                        '<div class="challenge-bar-wrap"><div class="challenge-bar" style="width:' + pct + '%"></div></div>' +
+                        '<div class="challenge-progress">' + Math.min(p.count, c.target) + ' / ' + c.target + '</div>' +
+                        '</div>' +
+                        '<div class="challenge-reward">+' + c.reward.toLocaleString() + ' 🪙</div>' +
+                        (ready ? '<button class="challenge-claim-btn" onclick="claimChallenge(\'' + c.id + '\')">' + 'CLAIM</button>' : '') +
+                        (done ? '<div class="challenge-claimed">✓</div>' : '') +
+                        '</div>';
+                }).join('');
+
+            // Update hidden panel (legacy) and modal body
+            const panel = document.getElementById('daily-challenges-panel');
+            if (panel) panel.innerHTML = challengesHtml;
+            const modalBody = document.getElementById('challenges-modal-body');
+            if (modalBody) modalBody.innerHTML = challengesHtml;
+        }
+
+        function openChallengesModal() {
+            renderDailyChallenges();
+            document.getElementById('challenges-modal').style.display = 'flex';
+        }
+        function closeChallengesModal() {
+            document.getElementById('challenges-modal').style.display = 'none';
         }
 
         function tickChallenge(id, amount) {
@@ -2054,6 +2077,208 @@
             logActivity('completed_exchange', exc.reward_card || null);
             addXP(30);
             showToast(`🔁 Exchange complete! You received ${exc.reward_card?.name||'a reward card'}!`);
+        }
+
+
+        // ─── ONBOARDING ───────────────────────────────────────────────────────────
+        function showOnboarding() {
+            const modal = document.getElementById('onboarding-modal');
+            if (modal) modal.style.display = 'flex';
+        }
+        function closeOnboarding() {
+            const modal = document.getElementById('onboarding-modal');
+            if (modal) modal.style.display = 'none';
+            showView('slots');
+        }
+
+        // ─── HOME SCREEN ──────────────────────────────────────────────────────────
+        async function updateHomeScreen() {
+            // Stats panel
+            document.getElementById('stat-cards').innerText = mySquad.length;
+            document.getElementById('stat-level').innerText = 'LV' + _trainerLevel;
+            document.getElementById('stat-hourly').innerText = Math.floor(getOfficeHourlyTotal()).toLocaleString();
+
+            // Rank
+            const { data: rankData } = await _supabase.from('user_saves')
+                .select('user_id').order('club_value', { ascending: false }).limit(100);
+            if (rankData) {
+                const myRank = rankData.findIndex(r => r.user_id === currentUser.id) + 1;
+                document.getElementById('stat-rank').innerText = myRank > 0 ? '#' + myRank : '#—';
+            }
+
+            // Showcase / best card
+            const showcaseEl = document.getElementById('home-showcase-card');
+            if (mySquad.length === 0) {
+                showcaseEl.innerHTML = '<div style="color:#333;font-size:0.75rem;letter-spacing:1px;padding:20px;">Open your first pack to get started!</div>';
+            } else {
+                const best = mySquad.find(c => c.isShowcase) || [...mySquad].sort((a,b) => getCardValue(b) - getCardValue(a))[0];
+                showcaseEl.innerHTML = generateCardHtml(best, false);
+            }
+
+            // Daycare capped alert
+            const alert = document.getElementById('home-daycare-alert');
+            if (alert) alert.style.display = isOfficeCapped() && mySquad.length > 0 ? 'flex' : 'none';
+        }
+
+        // ─── PROFILE ──────────────────────────────────────────────────────────────
+        async function loadProfile() {
+            const username = currentUser?.user_metadata?.username || currentUser?.email?.split('@')[0] || 'TRAINER';
+            document.getElementById('profile-username').innerText = username.toUpperCase();
+            document.getElementById('profile-title-badge').innerText = _trainerTitle || 'ROOKIE';
+            document.getElementById('pstat-level').innerText = _trainerLevel;
+            document.getElementById('pstat-cards').innerText = mySquad.length;
+            document.getElementById('pstat-streak').innerText = _loginStreak || 0;
+
+            // Rank
+            const { data: rankData } = await _supabase.from('user_saves')
+                .select('user_id').order('club_value', { ascending: false }).limit(100);
+            if (rankData) {
+                const myRank = rankData.findIndex(r => r.user_id === currentUser.id) + 1;
+                document.getElementById('pstat-rank').innerText = myRank > 0 ? '#' + myRank : '#—';
+            }
+
+            // XP bar
+            const nextLevel = _levelDefs.find(l => l.level === _trainerLevel + 1);
+            const currentLevelDef = _levelDefs.find(l => l.level === _trainerLevel);
+            const xpForCurrent = currentLevelDef?.xp_required || 0;
+            const xpForNext = nextLevel?.xp_required || (_trainerXP + 100);
+            const xpProgress = Math.max(0, _trainerXP - xpForCurrent);
+            const xpNeeded = xpForNext - xpForCurrent;
+            const pct = Math.min((xpProgress / xpNeeded) * 100, 100);
+            document.getElementById('profile-xp-bar').style.width = pct + '%';
+            document.getElementById('profile-xp-text').innerText = _trainerXP.toLocaleString() + ' XP' + (nextLevel ? ' · ' + xpNeeded + ' to Level ' + nextLevel.level : ' · MAX LEVEL');
+
+            // Showcase card
+            const showcaseEl = document.getElementById('profile-showcase-card');
+            const showcase = mySquad.find(c => c.isShowcase) || (mySquad.length > 0 ? [...mySquad].sort((a,b) => getCardValue(b)-getCardValue(a))[0] : null);
+            showcaseEl.innerHTML = showcase ? generateCardHtml(showcase, false) : '<div style="color:#333;font-size:0.75rem;padding:20px;text-align:center;">No showcase card set — open some packs!</div>';
+
+            // Stats grid
+            const cv = [...mySquad].sort((a,b) => getCardValue(b)-getCardValue(a)).slice(0,OFFICE_TOP_N).reduce((sum,p) => sum+getCardValue(p), 0);
+            const rares = mySquad.filter(p => ['ultra rare','secret rare','limited','1st edition'].includes((p.rarity||'').toLowerCase())).length;
+            document.getElementById('profile-stats-grid').innerHTML = [
+                { label: 'COLLECTION VALUE', val: cv.toLocaleString() + ' 🪙' },
+                { label: 'RARE CARDS', val: rares },
+                { label: 'COINS', val: balance.toLocaleString() + ' 🪙' },
+                { label: 'HOURLY RATE', val: Math.floor(getOfficeHourlyTotal()).toLocaleString() + ' 🪙/hr' },
+                { label: 'LOGIN STREAK', val: (_loginStreak || 0) + ' days 🔥' },
+                { label: 'TRAINER TITLE', val: _trainerTitle || 'ROOKIE' },
+            ].map(s => '<div class="pstat-grid-item"><div class="pstat-grid-val">' + s.val + '</div><div class="pstat-grid-lbl">' + s.label + '</div></div>').join('');
+
+            // Load friends
+            loadFriends();
+        }
+
+        // ─── FRIENDS SYSTEM ───────────────────────────────────────────────────────
+        async function loadFriends() {
+            if (!currentUser) return;
+            const myUsername = currentUser.user_metadata?.username || currentUser.email.split('@')[0];
+
+            // Load accepted friends
+            const { data: friendsData } = await _supabase.from('friends')
+                .select('*')
+                .or('sender_id.eq.' + currentUser.id + ',receiver_id.eq.' + currentUser.id)
+                .eq('status', 'accepted');
+
+            // Load incoming requests
+            const { data: requestsData } = await _supabase.from('friends')
+                .select('*')
+                .eq('receiver_id', currentUser.id)
+                .eq('status', 'pending');
+
+            _friends = friendsData || [];
+            _friendRequests = requestsData || [];
+
+            renderFriendRequests();
+            renderFriendsList();
+        }
+
+        function renderFriendRequests() {
+            const el = document.getElementById('friend-requests-section');
+            if (!el || _friendRequests.length === 0) { if(el) el.innerHTML = ''; return; }
+            let rhtml = '<div class="friend-requests-title">FRIEND REQUESTS (' + _friendRequests.length + ')</div>';
+            _friendRequests.forEach(function(r) {
+                rhtml += '<div class="friend-request-row">';
+                rhtml += '<span class="friend-req-name">' + (r.sender_username || 'TRAINER').toUpperCase() + '</span>';
+                rhtml += '<div style="display:flex;gap:6px;">';
+                rhtml += '<button class="friend-accept-btn" onclick="acceptFriendRequest(\'' + r.id + '\')">ACCEPT</button>';
+                rhtml += '<button class="friend-decline-btn" onclick="declineFriendRequest(\'' + r.id + '\')">DECLINE</button>';
+                rhtml += '</div></div>';
+            });
+            el.innerHTML = rhtml;
+        }
+
+        function renderFriendsList() {
+            const el = document.getElementById('friends-list');
+            if (!el) return;
+            if (_friends.length === 0) { el.innerHTML = '<div class="friends-empty">No friends yet!</div>'; return; }
+            let fhtml = '';
+            _friends.forEach(function(f) {
+                const fn = f.sender_id === currentUser.id ? f.receiver_username : f.sender_username;
+                fhtml += '<div class="friend-row">';
+                fhtml += '<div class="friend-avatar">🎮</div>';
+                fhtml += '<div class="friend-info"><div class="friend-name">' + (fn || 'TRAINER').toUpperCase() + '</div></div>';
+                fhtml += '<button class="friend-view-btn" onclick="viewFriendProfile(\'' + (fn||'') + '\')">VIEW</button>';
+                fhtml += '</div>';
+            });
+            el.innerHTML = fhtml;
+        }
+
+                async function sendFriendRequest() {
+            const input = document.getElementById('friend-search-input');
+            const targetUsername = input.value.trim();
+            if (!targetUsername) { showToast('Enter a trainer name.'); return; }
+            const myUsername = currentUser.user_metadata?.username || currentUser.email.split('@')[0];
+            if (targetUsername.toLowerCase() === myUsername.toLowerCase()) { showToast("You can\'t add yourself!"); return; }
+
+            // Find the target user
+            const { data: target } = await _supabase.from('user_saves')
+                .select('user_id, username').ilike('username', targetUsername).single();
+            if (!target) { showToast('Trainer "' + targetUsername + '" not found.'); return; }
+
+            // Check not already friends
+            const { data: existing } = await _supabase.from('friends')
+                .select('id')
+                .or('and(sender_id.eq.' + currentUser.id + ',receiver_id.eq.' + target.user_id + '),and(sender_id.eq.' + target.user_id + ',receiver_id.eq.' + currentUser.id + ')')
+                .limit(1);
+            if (existing && existing.length > 0) { showToast('Already friends or request pending!'); return; }
+
+            const { error } = await _supabase.from('friends').insert({
+                sender_id: currentUser.id,
+                sender_username: myUsername,
+                receiver_id: target.user_id,
+                receiver_username: target.username,
+                status: 'pending',
+                created_at: new Date().toISOString()
+            });
+            if (error) { showToast('Error sending request: ' + error.message); return; }
+            input.value = '';
+            showToast('Friend request sent to ' + targetUsername + '!');
+        }
+
+        async function acceptFriendRequest(requestId) {
+            await _supabase.from('friends').update({ status: 'accepted' }).eq('id', requestId);
+            showToast('Friend added!');
+            loadFriends();
+        }
+
+        async function declineFriendRequest(requestId) {
+            await _supabase.from('friends').delete().eq('id', requestId);
+            loadFriends();
+        }
+
+        async function viewFriendProfile(username) {
+            if (!username) return;
+            const { data } = await _supabase.from('user_saves')
+                .select('username, squad, club_value, level, trainer_title').ilike('username', username).single();
+            if (!data) return;
+            document.getElementById('sv-title').innerText = (data.username||username).toUpperCase() + "\'S COLLECTION";
+            document.getElementById('sv-subtitle').innerText = (data.squad||[]).length + ' cards · LV' + (data.level||1) + ' · ' + (data.club_value||0).toLocaleString() + ' 🪙';
+            const grid = document.getElementById('sv-grid');
+            grid.innerHTML = data.squad && data.squad.length > 0
+                ? [...data.squad].sort((a,b) => getCardValue(b)-getCardValue(a)).map(p => generateCardHtml(p,false)).join('')
+                : '<div class="sv-empty">No cards yet.</div>';
+            document.getElementById('squad-viewer-modal').style.display = 'flex';
         }
 
         // ─── INIT ─────────────────────────────────────────────────────────────────

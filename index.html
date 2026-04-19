@@ -97,6 +97,7 @@
             <button id="nav-trade" onclick="showView('trade')">
                 TRADE <span class="trade-badge" id="trade-badge">!</span>
             </button>
+            <button id="nav-profile" onclick="showView('profile')">PROFILE</button>
             <button id="logout-btn" onclick="handleLogout()">LOGOUT</button>
         </div>
         <div class="nav-metric nav-right" style="display:flex;align-items:center;gap:10px;justify-content:flex-end;">
@@ -135,21 +136,95 @@
     <!-- ─── HOME VIEW ─── -->
     <div id="view-home" class="view">
         <div class="marquee-container"><div id="marquee-track" class="marquee-track"></div></div>
-        <div class="home-content">
-            <div class="home-logo"><span class="logo-poke">COLLECTION</span><span class="logo-draft">BASE</span></div>
-            <div id="welcome-msg"></div>
-            <!-- Streak badge -->
-            <div id="streak-display" class="streak-display" style="display:none;"></div>
-            <!-- Activity Feed -->
-            <div class="home-feed-wrap">
-                <div class="home-section-label">🔴 LIVE ACTIVITY</div>
-                <div id="activity-feed-list" class="activity-feed-list">
-                    <div class="feed-empty">No activity yet — be the first to pull something big!</div>
+
+        <!-- Home Header Bar -->
+        <div class="home-header-bar">
+            <div class="home-header-left">
+                <div class="home-logo-sm"><span class="logo-poke">COLLECTION</span><span class="logo-draft">BASE</span></div>
+                <div id="welcome-msg" class="home-welcome"></div>
+            </div>
+            <div class="home-header-right">
+                <div id="streak-display" class="streak-display" style="display:none;"></div>
+                <div id="home-daycare-alert" style="display:none;" class="home-daycare-alert-sm" onclick="showView('office')">
+                    ⚠ DAYCARE CAPPED
                 </div>
             </div>
-            <!-- Daily Challenges -->
-            <div id="daily-challenges-panel" class="challenges-panel" style="margin-top:16px;width:100%;"></div>
-            <button class="btn btn-primary" style="margin-top:10px;" onclick="showView('slots')">OPEN PACKS</button>
+        </div>
+
+        <!-- Stats Row -->
+        <div class="home-stats-panel" id="home-stats-panel">
+            <div class="home-stat-card" onclick="showView('team')">
+                <div class="home-stat-icon">🃏</div>
+                <div class="home-stat-value" id="stat-cards">0</div>
+                <div class="home-stat-label">CARDS</div>
+            </div>
+            <div class="home-stat-card" onclick="showView('rank')">
+                <div class="home-stat-icon">🏆</div>
+                <div class="home-stat-value" id="stat-rank">#—</div>
+                <div class="home-stat-label">RANK</div>
+            </div>
+            <div class="home-stat-card" onclick="showView('office')">
+                <div class="home-stat-icon">💰</div>
+                <div class="home-stat-value" id="stat-hourly">0</div>
+                <div class="home-stat-label">🪙/HR</div>
+            </div>
+            <div class="home-stat-card" onclick="showView('profile')">
+                <div class="home-stat-icon">⚡</div>
+                <div class="home-stat-value" id="stat-level">LV1</div>
+                <div class="home-stat-label">LEVEL</div>
+            </div>
+        </div>
+
+        <!-- Main Two-Column Grid -->
+        <div class="home-grid">
+            <!-- LEFT COL: showcase card + quick actions -->
+            <div class="home-col-left">
+                <div class="home-panel">
+                    <div class="home-section-label">🌟 YOUR BEST CARD</div>
+                    <div id="home-showcase-card" class="home-showcase-center"></div>
+                </div>
+                <div class="home-panel">
+                    <div class="home-section-label">⚡ QUICK ACTIONS</div>
+                    <div class="home-actions-grid">
+                        <button class="home-action-btn" onclick="showView('slots')">🎴 PACKS</button>
+                        <button class="home-action-btn" onclick="showView('arena')">⚔ BATTLE</button>
+                        <button class="home-action-btn" onclick="showView('trade')">🔄 TRADE</button>
+                        <button class="home-action-btn" onclick="showView('shop')">🛒 SHOP</button>
+                        <button class="home-action-btn" onclick="showView('rank')">🏆 RANKINGS</button>
+                        <button class="home-action-btn" onclick="showView('profile')">👤 PROFILE</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COL: activity feed + challenges button -->
+            <div class="home-col-right">
+                <div class="home-panel home-feed-panel">
+                    <div class="home-section-label">🔴 LIVE ACTIVITY</div>
+                    <div id="activity-feed-list" class="activity-feed-list">
+                        <div class="feed-empty">No activity yet!</div>
+                    </div>
+                </div>
+                <div class="home-panel">
+                    <button class="home-challenges-btn" onclick="openChallengesModal()">
+                        <span>📋 DAILY CHALLENGES</span>
+                        <span id="challenges-progress-badge" class="challenges-badge">0/6</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hidden panel still needed for renderDailyChallenges logic -->
+        <div id="daily-challenges-panel" style="display:none;"></div>
+    </div>
+
+    <!-- ─── DAILY CHALLENGES MODAL ─── -->
+    <div id="challenges-modal" onclick="if(event.target===this)closeChallengesModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:3500;align-items:center;justify-content:center;">
+        <div class="challenges-modal-box">
+            <div class="challenges-modal-header">
+                <span>📋 DAILY CHALLENGES</span>
+                <button onclick="closeChallengesModal()" style="background:none;border:none;color:#888;font-size:1.2rem;cursor:pointer;">✕</button>
+            </div>
+            <div id="challenges-modal-body"></div>
         </div>
     </div>
 
@@ -413,6 +488,56 @@
         </div>
     </div>
 
+    <!-- ─── PROFILE VIEW ─── -->
+    <div id="view-profile" class="view">
+        <div class="view-header">
+            <h2 class="view-title">👤 MY PROFILE</h2>
+        </div>
+        <div class="profile-wrap">
+            <!-- Profile Card -->
+            <div class="profile-card">
+                <div class="profile-avatar" id="profile-avatar">🎮</div>
+                <div class="profile-username" id="profile-username">TRAINER</div>
+                <div class="profile-title-badge" id="profile-title-badge">ROOKIE</div>
+                <div class="profile-stats-row">
+                    <div class="profile-stat"><div class="profile-stat-val" id="pstat-level">1</div><div class="profile-stat-lbl">LEVEL</div></div>
+                    <div class="profile-stat"><div class="profile-stat-val" id="pstat-cards">0</div><div class="profile-stat-lbl">CARDS</div></div>
+                    <div class="profile-stat"><div class="profile-stat-val" id="pstat-streak">0</div><div class="profile-stat-lbl">STREAK</div></div>
+                    <div class="profile-stat"><div class="profile-stat-val" id="pstat-rank">#—</div><div class="profile-stat-lbl">RANK</div></div>
+                </div>
+                <!-- XP Bar -->
+                <div class="profile-xp-wrap">
+                    <div class="profile-xp-label">XP PROGRESS</div>
+                    <div class="profile-xp-bar-bg"><div class="profile-xp-bar" id="profile-xp-bar" style="width:0%"></div></div>
+                    <div class="profile-xp-text" id="profile-xp-text">0 / 100 XP</div>
+                </div>
+            </div>
+
+            <!-- Showcase Card -->
+            <div class="profile-section">
+                <div class="profile-section-title">🌟 SHOWCASE CARD</div>
+                <div id="profile-showcase-card" class="profile-showcase-card-wrap"></div>
+            </div>
+
+            <!-- Friends -->
+            <div class="profile-section">
+                <div class="profile-section-title">👥 FRIENDS</div>
+                <div class="friend-add-row">
+                    <input type="text" id="friend-search-input" class="login-input" placeholder="Enter trainer name..." style="margin:0;flex:1;">
+                    <button class="btn btn-primary" style="width:auto;padding:10px 20px;margin:0;" onclick="sendFriendRequest()">ADD</button>
+                </div>
+                <div id="friend-requests-section" style="margin-top:12px;"></div>
+                <div id="friends-list" class="friends-list"><div class="friends-empty">No friends yet — add some trainers!</div></div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="profile-section">
+                <div class="profile-section-title">📋 STATS</div>
+                <div class="profile-stats-grid" id="profile-stats-grid"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- ─── EXCHANGES VIEW ─── -->
     <div id="view-exchanges" class="view">
         <div class="view-header">
@@ -541,6 +666,44 @@
             <div class="streak-reward" id="streak-reward">+300 🪙</div>
             <div class="streak-progress" id="streak-progress"></div>
             <button class="btn btn-primary" style="max-width:200px;margin:20px auto 0;" onclick="closeStreakOverlay()">COLLECT!</button>
+        </div>
+    </div>
+
+
+    <!-- ─── ONBOARDING MODAL ─── -->
+    <div id="onboarding-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.95);z-index:9800;align-items:center;justify-content:center;">
+        <div class="onboarding-box">
+            <div class="onboarding-logo"><span class="logo-poke">COLLECTION</span><span class="logo-draft">BASE</span></div>
+            <div class="onboarding-welcome">WELCOME, TRAINER!</div>
+            <div class="onboarding-sub">Here's how to get started:</div>
+            <div class="onboarding-steps">
+                <div class="onboarding-step active" id="ob-step-1">
+                    <div class="ob-step-num">1</div>
+                    <div class="ob-step-icon">🎴</div>
+                    <div class="ob-step-title">OPEN PACKS</div>
+                    <div class="ob-step-desc">Head to the Pack Store and open your first pack. You've got 3,000 coins to start — enough for 6 Standard packs!</div>
+                </div>
+                <div class="onboarding-step" id="ob-step-2">
+                    <div class="ob-step-num">2</div>
+                    <div class="ob-step-icon">📦</div>
+                    <div class="ob-step-title">BUILD YOUR COLLECTION</div>
+                    <div class="ob-step-desc">Keep your best cards — the higher the rating, the more they're worth. Sell duplicates for coins to open more packs.</div>
+                </div>
+                <div class="onboarding-step" id="ob-step-3">
+                    <div class="ob-step-num">3</div>
+                    <div class="ob-step-icon">💰</div>
+                    <div class="ob-step-title">EARN PASSIVE INCOME</div>
+                    <div class="ob-step-desc">Your top 12 cards earn coins automatically in the Daycare. Check back every 6 hours to collect. The better your cards, the more you earn.</div>
+                </div>
+                <div class="onboarding-step" id="ob-step-4">
+                    <div class="ob-step-num">4</div>
+                    <div class="ob-step-icon">🏆</div>
+                    <div class="ob-step-title">BATTLE & TRADE</div>
+                    <div class="ob-step-desc">Battle other trainers in the Arena to win cards, or trade with real players on the Trade Board. Climb the global rankings!</div>
+                </div>
+            </div>
+            <div class="onboarding-free-pack">🎁 You've been given 3,000 coins to get started — good luck!</div>
+            <button class="btn btn-primary" style="max-width:280px;margin:20px auto 0;" onclick="closeOnboarding()">LET'S GO! 🚀</button>
         </div>
     </div>
 
