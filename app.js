@@ -1,7 +1,7 @@
 // ─── CONSTANTS ───────────────────────────────────────────────────────────
         const SELL_RATE = 0.50;
         const HOLO_MULTIPLIER = 3;
-        const OFFICE_HOURLY_RATE = 0.015;
+        const OFFICE_HOURLY_RATE = 0.03;
         const OFFICE_CAP_HOURS = 6;
         const OFFICE_TOP_N = 12;
         const PACK_IMAGES = {
