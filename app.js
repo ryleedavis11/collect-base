@@ -872,6 +872,8 @@
             if (!data) return;
             data.forEach(row => {
                 if (row.setting_key === 'holo_rules') holoConfig = row.setting_value;
+                if (row.setting_key === 'survival_rewards' && Array.isArray(row.setting_value)) SURVIVAL_REWARDS = row.setting_value;
+                if (row.setting_key === 'survival_entry' && row.setting_value) { SURVIVAL_ENTRY = Number(row.setting_value); updateSurvivalEntryBtn(); }
                 if (row.setting_key === 'weekly_featured_card') {
                     _featuredCardConfig = row.setting_value;
                     updateFeaturedCardBanner();
@@ -1230,6 +1232,7 @@
             if (id === 'arena')     arenaToLobby();
             if (id === 'slots')     { resetUI(); closeCatalog(); initDailyReward(); }
             if (id === 'shop')      loadShop();
+            if (id === 'survival')   initSurvivalLobby();
             if (id === 'home')      { updateStreakDisplay(); renderDailyChallenges(); updateHomeScreen(); }
             if (id === 'profile')   loadProfile();
             if (id !== 'team')      exitMultiSelect();
@@ -1989,7 +1992,9 @@
 
         function handleSquadNavClick(e) { document.getElementById('nav-squad-menu').classList.toggle('open'); e.stopPropagation(); }
         function closeNavDropdown() { document.getElementById('nav-squad-menu').classList.remove('open'); }
-        document.addEventListener('click', () => closeNavDropdown());
+        function handleModesNavClick(e) { document.getElementById('nav-modes-menu').classList.toggle('open'); e.stopPropagation(); }
+        function closeModesDropdown() { document.getElementById('nav-modes-menu').classList.remove('open'); }
+        document.addEventListener('click', () => { closeNavDropdown(); closeModesDropdown(); });
 
         // ─── ARENA ───────────────────────────────────────────────────────────────
         function arenaToLobby() { document.querySelectorAll('.arena-phase').forEach(p => p.classList.remove('active-phase')); document.getElementById('arena-lobby').classList.add('active-phase'); }
@@ -2403,6 +2408,220 @@
                 ? [...data.squad].sort((a,b) => getCardValue(b)-getCardValue(a)).map(p => generateCardHtml(p,false)).join('')
                 : '<div class="sv-empty">No cards yet.</div>';
             document.getElementById('squad-viewer-modal').style.display = 'flex';
+        }
+
+
+        // ─── SURVIVAL MODE ────────────────────────────────────────────────────────
+        let SURVIVAL_ENTRY = 1000;
+        let SURVIVAL_REWARDS = [
+            { wins: 1,  coins: 800,    label: 'SURVIVOR' },
+            { wins: 2,  coins: 2000,   label: 'FIGHTER' },
+            { wins: 3,  coins: 4000,   label: 'WARRIOR' },
+            { wins: 4,  coins: 7000,   label: 'VETERAN' },
+            { wins: 5,  coins: 11000,  label: 'ELITE' },
+            { wins: 6,  coins: 17000,  label: 'CHAMPION' },
+            { wins: 7,  coins: 25000,  label: 'MASTER' },
+            { wins: 8,  coins: 36000,  label: 'LEGEND' },
+            { wins: 9,  coins: 50000,  label: 'MYTHIC' },
+            { wins: 10, coins: 75000,  label: 'GOD TIER', bonusCard: true }
+        ];
+
+        let _survivalState = { active: false, hand: 0, banked: 0, streak: [] };
+
+        function updateSurvivalEntryBtn() {
+            const btn = document.getElementById('survival-enter-btn');
+            if (btn) btn.innerText = 'ENTER SURVIVAL — ' + SURVIVAL_ENTRY.toLocaleString() + ' 🌕';
+        }
+
+        function initSurvivalLobby() {
+            updateSurvivalEntryBtn();
+            survivorBackToLobby();
+            const ladder = document.getElementById('survival-reward-ladder');
+            if (!ladder) return;
+            ladder.innerHTML = [...SURVIVAL_REWARDS].reverse().map(r => {
+                const isBig = r.wins === 10;
+                return '<div class="survival-ladder-row' + (isBig ? ' jackpot' : '') + '">' +
+                    '<span class="survival-ladder-wins">' + (isBig ? '🏆' : '') + ' WIN ' + r.wins + '</span>' +
+                    '<span class="survival-ladder-coins">' + r.coins.toLocaleString() + ' 🌕' + (r.bonusCard ? ' + CARD' : '') + '</span>' +
+                    '</div>';
+            }).join('');
+        }
+
+        function survivalShowPhase(id) {
+            document.querySelectorAll('.survival-phase').forEach(p => p.classList.remove('active-phase'));
+            document.getElementById(id).classList.add('active-phase');
+        }
+
+        async function startSurvival() {
+            if (balance < SURVIVAL_ENTRY) { showToast('Not enough coins! Need ' + SURVIVAL_ENTRY.toLocaleString() + ' 🌕 to enter.'); return; }
+            const { data: fresh } = await _supabase.from('user_saves').select('balance').eq('user_id', currentUser.id).single();
+            if (!fresh || fresh.balance < SURVIVAL_ENTRY) { showToast('Not enough coins!'); return; }
+            balance = fresh.balance;
+            balance -= SURVIVAL_ENTRY;
+            updateUI(); await saveGame();
+            _survivalState = { active: true, hand: 0, banked: 0, streak: [] };
+            survivalShowPhase('survival-flipping');
+            await survivalPlayHand();
+        }
+
+        // Helper: wait for player to click flip button
+        function waitForFlip(promptText) {
+            return new Promise(resolve => {
+                const btn = document.getElementById('survival-flip-btn');
+                btn.innerText = promptText;
+                btn.style.display = 'flex';
+                btn.onclick = () => {
+                    btn.style.display = 'none';
+                    btn.onclick = null;
+                    resolve();
+                };
+            });
+        }
+
+        async function survivalPlayHand() {
+            _survivalState.hand++;
+            const handNum = _survivalState.hand;
+            document.getElementById('survival-hand-num').innerText = handNum;
+            document.getElementById('survival-banked-display').innerText = 'BANKED: ' + _survivalState.banked.toLocaleString() + ' 🌕';
+            document.getElementById('survival-action-row').style.display = 'none';
+            document.getElementById('survival-result-msg').innerText = '';
+            document.getElementById('survival-flip-btn').style.display = 'none';
+
+            // Reset all cards to face-down
+            ['surv-p-card1','surv-p-card2','surv-b-card1','surv-b-card2'].forEach(id => {
+                const el = document.getElementById(id);
+                el.innerHTML = '<div class="survival-card-back">🃏</div>';
+                el.className = 'survival-card-slot';
+            });
+            document.getElementById('surv-p-total').innerText = '? 🌕';
+            document.getElementById('surv-b-total').innerText = '? 🌕';
+            updateSurvivalDots();
+
+            // Draw all 4 cards upfront (hidden)
+            const [pCard1, pCard2, bCard1, bCard2] = await Promise.all([
+                getArenaCard(false), getArenaCard(false), getArenaCard(false), getArenaCard(false)
+            ]);
+            if (!pCard1 || !pCard2 || !bCard1 || !bCard2) {
+                showToast('Connection error. Refunding entry.');
+                balance += SURVIVAL_ENTRY; updateUI(); await saveGame();
+                survivorBackToLobby(); return;
+            }
+
+            const pTotal = getCardValue(pCard1) + getCardValue(pCard2);
+            const bTotal = getCardValue(bCard1) + getCardValue(bCard2);
+
+            // ROUND 1: Bot flips first, then player clicks to flip theirs
+            await new Promise(r => setTimeout(r, 500));
+            document.getElementById('surv-b-card1').innerHTML = generateCardHtml(bCard1, false);
+            document.getElementById('survival-result-msg').innerText = 'Bot flipped their first card — flip yours!';
+            await waitForFlip('🃏 FLIP YOUR CARD');
+
+            document.getElementById('surv-p-card1').innerHTML = generateCardHtml(pCard1, false);
+            await new Promise(r => setTimeout(r, 800));
+
+            // ROUND 2: Bot flips second card, then player clicks to flip theirs
+            document.getElementById('surv-b-card2').innerHTML = generateCardHtml(bCard2, false);
+            document.getElementById('surv-b-total').innerText = bTotal.toLocaleString() + ' 🌕';
+            document.getElementById('survival-result-msg').innerText = 'Bot flipped their second card — flip yours to see the result!';
+            await waitForFlip('🃏 FLIP FINAL CARD');
+
+            document.getElementById('surv-p-card2').innerHTML = generateCardHtml(pCard2, false);
+            document.getElementById('surv-p-total').innerText = pTotal.toLocaleString() + ' 🌕';
+            await new Promise(r => setTimeout(r, 800));
+
+            // Resolve result
+            if (pTotal === bTotal) {
+                document.getElementById('survival-result-msg').innerText = '🤝 DRAW — REPLAYING HAND...';
+                _survivalState.hand--;
+                await new Promise(r => setTimeout(r, 1500));
+                await survivalPlayHand(); return;
+            }
+            if (pTotal > bTotal) {
+                _survivalState.streak.push(true);
+                const reward = SURVIVAL_REWARDS[handNum - 1];
+                _survivalState.banked = reward ? reward.coins : _survivalState.banked;
+                document.getElementById('survival-banked-display').innerText = 'BANKED: ' + _survivalState.banked.toLocaleString() + ' 🌕';
+                updateSurvivalDots();
+                if (handNum >= 10) { await survivalJackpot(); return; }
+                document.getElementById('survival-result-msg').innerHTML =
+                    '<span style="color:#3ecf8e;font-size:1.1rem;font-weight:900;">✅ YOU WIN!</span><br>' +
+                    '<span style="font-size:0.8rem;color:#aaa;">Cash out for ' + _survivalState.banked.toLocaleString() + ' 🌕 or risk it for ' + SURVIVAL_REWARDS[handNum].coins.toLocaleString() + ' 🌕</span>';
+                document.getElementById('survival-cashout-btn').innerText = 'CASH OUT — ' + _survivalState.banked.toLocaleString() + ' 🌕';
+                document.getElementById('survival-action-row').style.display = 'flex';
+            } else {
+                _survivalState.streak.push(false);
+                updateSurvivalDots();
+                await survivalLoss(handNum);
+            }
+        }
+
+        async function survivalJackpot() {
+            balance += 75000;
+            const bonusCard = await getArenaCard(true);
+            if (bonusCard) {
+                bonusCard.instanceId = 'inst_' + Date.now();
+                bonusCard.collectedDate = new Date().toLocaleDateString();
+                mySquad.push(bonusCard); renderSquad();
+            }
+            updateUI(); await saveGame();
+            addXP(200);
+            logActivity('won_battle', { name: 'SURVIVAL MODE WIN 10' });
+            document.getElementById('survival-result-banner').innerHTML = '🏆 GOD TIER! 🏆';
+            document.getElementById('survival-result-banner').className = 'survival-result-banner jackpot';
+            document.getElementById('survival-result-detail').innerHTML =
+                'YOU WON 10 HANDS IN A ROW!<br>' +
+                '<span style="color:#ffd700;font-family:var(--font-display);font-size:2rem;">+75,000 🌕</span><br>' +
+                (bonusCard ? '<span style="color:#3ecf8e;">+ ' + bonusCard.name + ' added to collection!</span>' : '');
+            survivalShowPhase('survival-result');
+            showToast('🏆 JACKPOT! 75,000 🌕 + bonus card!', 8000);
+        }
+
+        async function survivalLoss(handNum) {
+            survivalShowPhase('survival-result');
+            document.getElementById('survival-result-banner').innerText = '💀 ELIMINATED';
+            document.getElementById('survival-result-banner').className = 'survival-result-banner loss';
+            const handsWon = handNum - 1;
+            document.getElementById('survival-result-detail').innerHTML =
+                'You made it to hand ' + handNum + ' before losing.<br>' +
+                (handsWon > 0
+                    ? '<span style="color:#ef4444;">You were ' + (10 - handsWon) + ' hands away from ' + SURVIVAL_REWARDS[handsWon - 1]?.coins.toLocaleString() + ' 🌕</span>'
+                    : '<span style="color:#ef4444;">Better luck next time!</span>');
+        }
+
+        async function survivalCashOut() {
+            const amount = _survivalState.banked;
+            balance += amount; updateUI(); await saveGame();
+            addXP(Math.floor(amount / 500));
+            survivalShowPhase('survival-result');
+            document.getElementById('survival-result-banner').innerText = '💰 CASHED OUT!';
+            document.getElementById('survival-result-banner').className = 'survival-result-banner cashout';
+            document.getElementById('survival-result-detail').innerHTML =
+                'You survived ' + _survivalState.hand + ' hand' + (_survivalState.hand !== 1 ? 's' : '') + '!<br>' +
+                '<span style="color:#ffd700;font-family:var(--font-display);font-size:2rem;">+' + amount.toLocaleString() + ' 🌕</span>';
+            showToast('💰 Cashed out ' + amount.toLocaleString() + ' 🌕!');
+            _survivalState.active = false;
+        }
+
+        async function survivalNextHand() {
+            document.getElementById('survival-action-row').style.display = 'none';
+            await survivalPlayHand();
+        }
+
+        function survivorBackToLobby() {
+            _survivalState = { active: false, hand: 0, banked: 0, streak: [] };
+            survivalShowPhase('survival-lobby');
+        }
+
+        function updateSurvivalDots() {
+            const el = document.getElementById('survival-streak-dots');
+            if (!el) return;
+            let html = '';
+            for (let i = 0; i < 10; i++) {
+                const result = _survivalState.streak[i];
+                const cls = result === true ? 'surv-dot win' : (result === false ? 'surv-dot loss' : 'surv-dot empty');
+                html += '<div class="' + cls + '">' + (result === true ? '✓' : (result === false ? '✗' : (i + 1))) + '</div>';
+            }
+            el.innerHTML = html;
         }
 
         // ─── INIT ─────────────────────────────────────────────────────────────────

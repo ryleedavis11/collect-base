@@ -1236,3 +1236,62 @@ nav button.active { color: var(--accent); border-bottom: 2px solid var(--accent)
     40%  { background: rgba(255,203,5,0.6); opacity: 0.8; }
     100% { background: transparent; opacity: 0; }
 }
+/* ─── SURVIVAL FLIP BUTTON ───────────────────────────────────────────── */
+.survival-flip-btn {
+    background: linear-gradient(135deg, #7c3aed, #4f1d96);
+    color: #fff; border: none; border-radius: 14px;
+    padding: 16px 40px; font-family: var(--font-body);
+    font-size: 1rem; font-weight: 900; letter-spacing: 2px;
+    cursor: pointer; text-transform: uppercase; transition: 0.2s;
+    box-shadow: 0 4px 20px rgba(124,58,237,0.4);
+    animation: pulseBadge 1.5s infinite;
+    margin-top: 8px;
+}
+.survival-flip-btn:hover { filter: brightness(1.15); box-shadow: 0 6px 30px rgba(124,58,237,0.6); }
+/* ─── SURVIVAL MODE ──────────────────────────────────────────────────── */
+#view-survival.active { display:flex; flex-direction:column; align-items:center; }
+.survival-phase { display:none; width:100%; max-width:900px; }
+.survival-phase.active-phase { display:block; }
+.survival-lobby-inner { display:flex; flex-direction:column; align-items:center; gap:20px; padding:20px 0 40px; }
+.survival-jackpot-banner { background:linear-gradient(135deg,#1a1400,#2a2000); border:2px solid var(--accent); border-radius:20px; padding:24px 40px; text-align:center; box-shadow:0 0 40px rgba(255,203,5,0.2); }
+.survival-jackpot-label { font-size:0.65rem; color:var(--muted); letter-spacing:3px; font-weight:900; margin-bottom:6px; }
+.survival-jackpot-val { font-family:var(--font-display); font-size:3rem; color:var(--accent); letter-spacing:3px; line-height:1; }
+.survival-jackpot-sub { font-size:0.7rem; color:#3ecf8e; font-weight:900; letter-spacing:2px; margin-top:6px; }
+.survival-reward-ladder { display:grid; grid-template-columns:1fr; gap:4px; width:100%; max-width:400px; }
+.survival-ladder-row { display:flex; justify-content:space-between; align-items:center; background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:8px 16px; font-size:0.75rem; }
+.survival-ladder-row.jackpot { background:linear-gradient(135deg,#1a1400,#2a2000); border-color:var(--accent); }
+.survival-ladder-wins { font-weight:900; color:#aaa; }
+.survival-ladder-row.jackpot .survival-ladder-wins { color:var(--accent); }
+.survival-ladder-coins { font-weight:900; color:var(--gold); }
+.survival-entry-info { font-size:0.65rem; color:var(--muted); letter-spacing:1px; text-align:center; }
+.survival-enter-btn { background:linear-gradient(135deg,var(--accent),#ff8c00); color:#111; border:none; border-radius:14px; padding:16px 40px; font-family:var(--font-body); font-size:1rem; font-weight:900; letter-spacing:2px; cursor:pointer; text-transform:uppercase; transition:0.2s; box-shadow:0 4px 20px rgba(255,203,5,0.3); width:100%; max-width:400px; }
+.survival-enter-btn:hover { filter:brightness(1.1); }
+.survival-flipping-inner { display:flex; flex-direction:column; align-items:center; gap:16px; padding:20px 0; }
+.survival-hand-label { font-family:var(--font-display); font-size:1.4rem; color:var(--muted); letter-spacing:3px; }
+.survival-streak-row { display:flex; gap:8px; }
+.surv-dot { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.72rem; font-weight:900; border:2px solid var(--border); color:var(--muted); background:var(--bg2); }
+.surv-dot.win { background:#3ecf8e; border-color:#3ecf8e; color:#000; }
+.surv-dot.loss { background:#ef4444; border-color:#ef4444; color:#fff; }
+.survival-banked { font-family:var(--font-display); font-size:1.6rem; color:var(--gold); letter-spacing:2px; }
+.survival-cards-area { display:flex; gap:24px; align-items:flex-start; width:100%; justify-content:center; }
+.survival-side { display:flex; flex-direction:column; align-items:center; gap:8px; }
+.survival-side-label { font-size:0.65rem; color:var(--muted); letter-spacing:3px; font-weight:900; }
+.survival-card-slot { min-height:160px; display:flex; align-items:center; justify-content:center; }
+.survival-card-back { width:110px; height:155px; background:linear-gradient(135deg,#1a1a2a,#2a2a3a); border:2px solid var(--border); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:2.5rem; }
+.survival-total { font-family:var(--font-display); font-size:1.3rem; color:var(--accent); letter-spacing:1px; }
+.survival-vs { font-family:var(--font-display); font-size:2rem; color:var(--muted); align-self:center; }
+.survival-result-msg { text-align:center; font-size:0.9rem; color:#aaa; min-height:48px; line-height:1.6; }
+.survival-flip-btn { background:linear-gradient(135deg,#7c3aed,#4f1d96); color:#fff; border:none; border-radius:14px; padding:16px 40px; font-family:var(--font-body); font-size:1rem; font-weight:900; letter-spacing:2px; cursor:pointer; text-transform:uppercase; transition:0.2s; box-shadow:0 4px 20px rgba(124,58,237,0.4); animation:pulseBadge 1.5s infinite; margin-top:8px; }
+.survival-flip-btn:hover { filter:brightness(1.15); }
+.survival-action-row { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+.survival-cashout-btn { background:linear-gradient(135deg,#3ecf8e,#2ab87a); color:#000; border:none; border-radius:12px; padding:14px 28px; font-family:var(--font-body); font-size:0.85rem; font-weight:900; letter-spacing:1px; cursor:pointer; text-transform:uppercase; transition:0.2s; }
+.survival-continue-btn { background:linear-gradient(135deg,#7c3aed,#4f1d96); color:#fff; border:none; border-radius:12px; padding:14px 28px; font-family:var(--font-body); font-size:0.85rem; font-weight:900; letter-spacing:1px; cursor:pointer; text-transform:uppercase; transition:0.2s; }
+.survival-result-inner { display:flex; flex-direction:column; align-items:center; gap:16px; padding:40px 20px; text-align:center; }
+.survival-result-banner { font-family:var(--font-display); font-size:3rem; letter-spacing:4px; padding:16px 32px; border-radius:16px; }
+.survival-result-banner.loss { color:#ef4444; background:rgba(239,68,68,0.1); border:2px solid rgba(239,68,68,0.3); }
+.survival-result-banner.cashout { color:var(--gold); background:rgba(255,215,0,0.1); border:2px solid rgba(255,215,0,0.3); }
+.survival-result-banner.jackpot { color:var(--accent); background:linear-gradient(135deg,#1a1400,#2a2000); border:2px solid var(--accent); box-shadow:0 0 40px rgba(255,203,5,0.4); animation:bannerPop 0.5s cubic-bezier(0.175,0.885,0.32,1.275); }
+.survival-result-detail { font-size:1rem; color:#aaa; line-height:1.8; }
+/* Challenges modal */
+.challenges-modal-box { background:var(--bg2); border:1px solid var(--border); border-radius:18px; padding:24px; max-width:500px; width:95%; max-height:80vh; overflow-y:auto; }
+.challenges-modal-header { display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; font-weight:900; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--border); }

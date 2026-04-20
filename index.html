@@ -94,7 +94,14 @@
             </div>
 
             <button id="nav-shop" onclick="showView('shop')">SHOP</button>
-            <button id="nav-arena" onclick="showView('arena')">BATTLE</button>
+            <div class="nav-dropdown" id="modes-nav-dropdown">
+                <button id="nav-arena" onclick="handleModesNavClick(event)">GAME MODES ▾</button>
+                <div class="nav-dropdown-menu" id="nav-modes-menu">
+                    <button onclick="showView('arena'); closeModesDropdown()">⚔ Battle Arena</button>
+                    <div class="menu-divider"></div>
+                    <button onclick="showView('survival'); closeModesDropdown()">🃏 Survival Mode</button>
+                </div>
+            </div>
             <button id="nav-rank" onclick="showView('rank')">RANKINGS</button>
             <button id="nav-trade" onclick="showView('trade')">
                 TRADE <span class="trade-badge" id="trade-badge">!</span>
@@ -420,6 +427,61 @@
                 <div class="arena-result-msg" id="arena-result-msg"></div>
                 <button class="btn btn-primary" id="battle-again-btn" onclick="startArenaBattle(window._lastBattleHighStakes)" style="margin-top:20px;max-width:320px;">BATTLE AGAIN <span style="opacity:0.5;font-size:0.7rem;">↵</span></button>
                 <button class="btn" style="background:#1a1a28;max-width:320px;" onclick="arenaToLobby()">BACK TO LOBBY</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── SURVIVAL MODE VIEW ─── -->
+    <div id="view-survival" class="view">
+        <div class="view-header">
+            <h2 class="view-title">🃏 SURVIVAL MODE</h2>
+            <p class="view-sub">WIN 10 HANDS IN A ROW · CASH OUT ANYTIME · LOSE AND IT'S GONE</p>
+        </div>
+        <div id="survival-lobby" class="survival-phase active-phase">
+            <div class="survival-lobby-inner">
+                <div class="survival-jackpot-banner">
+                    <div class="survival-jackpot-label">🏆 WIN 10 HANDS</div>
+                    <div class="survival-jackpot-val">75,000 🌕</div>
+                    <div class="survival-jackpot-sub">+ BONUS RARE CARD</div>
+                </div>
+                <div class="survival-reward-ladder" id="survival-reward-ladder"></div>
+                <div class="survival-entry-info">ENTRY FEE: 1,000 🌕 · PURELY COINS · NO CARDS AT STAKE</div>
+                <button class="survival-enter-btn" id="survival-enter-btn" onclick="startSurvival()">ENTER SURVIVAL — 1,000 🌕</button>
+            </div>
+        </div>
+        <div id="survival-flipping" class="survival-phase">
+            <div class="survival-flipping-inner">
+                <div class="survival-hand-label">HAND <span id="survival-hand-num">1</span> OF 10</div>
+                <div class="survival-streak-row" id="survival-streak-dots"></div>
+                <div class="survival-banked" id="survival-banked-display">BANKED: 0 🌕</div>
+                <div class="survival-cards-area">
+                    <div class="survival-side">
+                        <div class="survival-side-label">BOT</div>
+                        <div class="survival-card-slot" id="surv-b-card1"></div>
+                        <div class="survival-card-slot" id="surv-b-card2"></div>
+                        <div class="survival-total" id="surv-b-total">? 🌕</div>
+                    </div>
+                    <div class="survival-vs">VS</div>
+                    <div class="survival-side">
+                        <div class="survival-side-label">YOU</div>
+                        <div class="survival-card-slot" id="surv-p-card1"></div>
+                        <div class="survival-card-slot" id="surv-p-card2"></div>
+                        <div class="survival-total" id="surv-p-total">? 🌕</div>
+                    </div>
+                </div>
+                <div class="survival-result-msg" id="survival-result-msg"></div>
+                <button id="survival-flip-btn" class="survival-flip-btn" style="display:none;">🃏 FLIP YOUR CARD</button>
+                <div class="survival-action-row" id="survival-action-row" style="display:none;">
+                    <button class="survival-cashout-btn" id="survival-cashout-btn" onclick="survivalCashOut()">CASH OUT</button>
+                    <button class="survival-continue-btn" onclick="survivalNextHand()">NEXT HAND →</button>
+                </div>
+            </div>
+        </div>
+        <div id="survival-result" class="survival-phase">
+            <div class="survival-result-inner">
+                <div class="survival-result-banner" id="survival-result-banner">GAME OVER</div>
+                <div class="survival-result-detail" id="survival-result-detail"></div>
+                <button class="survival-enter-btn" style="margin-top:20px;" onclick="survivorBackToLobby()">PLAY AGAIN</button>
             </div>
         </div>
     </div>
