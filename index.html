@@ -77,7 +77,14 @@
         <div class="nav-metric nav-left">DEX: <span id="nav-dex-value">0</span> 🌕</div>
         <div class="nav-center">
             <button id="nav-home" onclick="showView('home')">HOME</button>
-            <button id="nav-slots" onclick="showView('slots')">PACK STORE</button>
+            <div class="nav-dropdown" id="store-nav-dropdown">
+                <button id="nav-slots" onclick="handleStoreNavClick(event)">STORE ▾</button>
+                <div class="nav-dropdown-menu" id="nav-store-menu">
+                    <button onclick="showView('slots'); closeStoreDropdown()">🎴 Packs</button>
+                    <div class="menu-divider"></div>
+                    <button onclick="showView('shop'); closeStoreDropdown()">🛒 Card Shop</button>
+                </div>
+            </div>
             <div class="nav-dropdown" id="squad-nav-dropdown">
                 <button id="nav-team" onclick="handleSquadNavClick(event)">COLLECTION (<span id="team-count">0</span>) ▾</button>
                 <div class="nav-dropdown-menu" id="nav-squad-menu">
@@ -93,7 +100,7 @@
                 </div>
             </div>
 
-            <button id="nav-shop" onclick="showView('shop')">SHOP</button>
+
             <div class="nav-dropdown" id="modes-nav-dropdown">
                 <button id="nav-arena" onclick="handleModesNavClick(event)">GAME MODES ▾</button>
                 <div class="nav-dropdown-menu" id="nav-modes-menu">
@@ -457,15 +464,19 @@
                 <div class="survival-cards-area">
                     <div class="survival-side">
                         <div class="survival-side-label">BOT</div>
-                        <div class="survival-card-slot" id="surv-b-card1"></div>
-                        <div class="survival-card-slot" id="surv-b-card2"></div>
+                        <div class="survival-cards-row-inner">
+                            <div class="survival-card-slot" id="surv-b-card1"></div>
+                            <div class="survival-card-slot" id="surv-b-card2"></div>
+                        </div>
                         <div class="survival-total" id="surv-b-total">? 🌕</div>
                     </div>
                     <div class="survival-vs">VS</div>
                     <div class="survival-side">
                         <div class="survival-side-label">YOU</div>
-                        <div class="survival-card-slot" id="surv-p-card1"></div>
-                        <div class="survival-card-slot" id="surv-p-card2"></div>
+                        <div class="survival-cards-row-inner">
+                            <div class="survival-card-slot" id="surv-p-card1"></div>
+                            <div class="survival-card-slot" id="surv-p-card2"></div>
+                        </div>
                         <div class="survival-total" id="surv-p-total">? 🌕</div>
                     </div>
                 </div>

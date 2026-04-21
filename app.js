@@ -1994,7 +1994,9 @@
         function closeNavDropdown() { document.getElementById('nav-squad-menu').classList.remove('open'); }
         function handleModesNavClick(e) { document.getElementById('nav-modes-menu').classList.toggle('open'); e.stopPropagation(); }
         function closeModesDropdown() { document.getElementById('nav-modes-menu').classList.remove('open'); }
-        document.addEventListener('click', () => { closeNavDropdown(); closeModesDropdown(); });
+        function handleStoreNavClick(e) { document.getElementById('nav-store-menu').classList.toggle('open'); e.stopPropagation(); }
+        function closeStoreDropdown() { document.getElementById('nav-store-menu').classList.remove('open'); }
+        document.addEventListener('click', () => { closeNavDropdown(); closeModesDropdown(); closeStoreDropdown(); });
 
         // ─── ARENA ───────────────────────────────────────────────────────────────
         function arenaToLobby() { document.querySelectorAll('.arena-phase').forEach(p => p.classList.remove('active-phase')); document.getElementById('arena-lobby').classList.add('active-phase'); }
@@ -2581,10 +2583,11 @@
             document.getElementById('survival-result-banner').innerText = '💀 ELIMINATED';
             document.getElementById('survival-result-banner').className = 'survival-result-banner loss';
             const handsWon = handNum - 1;
+            const couldHaveHad = handsWon > 0 ? SURVIVAL_REWARDS[handsWon - 1]?.coins : 0;
             document.getElementById('survival-result-detail').innerHTML =
                 'You made it to hand ' + handNum + ' before losing.<br>' +
                 (handsWon > 0
-                    ? '<span style="color:#ef4444;">You were ' + (10 - handsWon) + ' hands away from ' + SURVIVAL_REWARDS[handsWon - 1]?.coins.toLocaleString() + ' 🌕</span>'
+                    ? '<span style="color:#ef4444;">You could have had ' + couldHaveHad.toLocaleString() + ' 🌕 if you had cashed out!</span>'
                     : '<span style="color:#ef4444;">Better luck next time!</span>');
         }
 
