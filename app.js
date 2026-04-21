@@ -874,6 +874,8 @@
                 if (row.setting_key === 'holo_rules') holoConfig = row.setting_value;
                 if (row.setting_key === 'survival_rewards' && Array.isArray(row.setting_value)) SURVIVAL_REWARDS = row.setting_value;
                 if (row.setting_key === 'survival_entry' && row.setting_value) { SURVIVAL_ENTRY = Number(row.setting_value); updateSurvivalEntryBtn(); }
+                if (row.setting_key === 'survival_easy_rewards' && Array.isArray(row.setting_value)) SURVIVAL_EASY_REWARDS = row.setting_value;
+                if (row.setting_key === 'survival_easy_entry' && row.setting_value) { SURVIVAL_EASY_ENTRY = Number(row.setting_value); updateSurvivalEasyEntryBtn(); }
                 if (row.setting_key === 'weekly_featured_card') {
                     _featuredCardConfig = row.setting_value;
                     updateFeaturedCardBanner();
@@ -1233,6 +1235,7 @@
             if (id === 'slots')     { resetUI(); closeCatalog(); initDailyReward(); }
             if (id === 'shop')      loadShop();
             if (id === 'survival')   initSurvivalLobby();
+            if (id === 'survival-easy') initSurvivalEasyLobby();
             if (id === 'home')      { updateStreakDisplay(); renderDailyChallenges(); updateHomeScreen(); }
             if (id === 'profile')   loadProfile();
             if (id !== 'team')      exitMultiSelect();
@@ -2430,6 +2433,22 @@
 
         let _survivalState = { active: false, hand: 0, banked: 0, streak: [] };
 
+        // ─── EASY SURVIVAL ────────────────────────────────────────────────────────
+        let SURVIVAL_EASY_ENTRY = 200;
+        let SURVIVAL_EASY_REWARDS = [
+            { wins: 1,  coins: 100,  label: 'BEGINNER' },
+            { wins: 2,  coins: 250,  label: 'SCRAPPER' },
+            { wins: 3,  coins: 400,  label: 'FIGHTER', bonusCard: true, bonusMinRating: 1, bonusMaxRating: 3 },
+            { wins: 4,  coins: 600,  label: 'HUSTLER' },
+            { wins: 5,  coins: 900,  label: 'GRINDER' },
+            { wins: 6,  coins: 1300, label: 'SURVIVOR' },
+            { wins: 7,  coins: 1800, label: 'VETERAN' },
+            { wins: 8,  coins: 2500, label: 'ELITE' },
+            { wins: 9,  coins: 3500, label: 'CHAMPION' },
+            { wins: 10, coins: 5000, label: 'LEGEND', bonusCard: true, bonusMinRating: 1, bonusMaxRating: 3 }
+        ];
+        let _survivalEasyState = { active: false, hand: 0, banked: 0, streak: [] };
+
         function updateSurvivalEntryBtn() {
             const btn = document.getElementById('survival-enter-btn');
             if (btn) btn.innerText = 'ENTER SURVIVAL — ' + SURVIVAL_ENTRY.toLocaleString() + ' 🌕';
@@ -2559,11 +2578,26 @@
 
         async function survivalJackpot() {
             balance += 75000;
-            const bonusCard = await getArenaCard(true);
-            if (bonusCard) {
-                bonusCard.instanceId = 'inst_' + Date.now();
-                bonusCard.collectedDate = new Date().toLocaleDateString();
-                mySquad.push(bonusCard); renderSquad();
+            // Award a free elite pack open
+            let bonusCard = null;
+            const { data: pack } = await _supabase.from('packs').select('*').eq('tier', 'elt').single();
+            if (pack) {
+                const roll = Math.random() * 100;
+                const rules = pack.odds_config || [];
+                let cumulative = 0, rule = rules[rules.length - 1];
+                for (const r of rules) { cumulative += r.chance; if (roll < cumulative) { rule = r; break; } }
+                const { data } = await _supabase.from('collection').select('*')
+                    .gte('rating', rule.min).lte('rating', rule.max)
+                    .not('rarity', 'ilike', 'limited')
+                    .not('rarity', 'ilike', '1st edition')
+                    .eq('in_packs', true);
+                if (data && data.length > 0) {
+                    bonusCard = data[Math.floor(Math.random() * data.length)];
+                    if (bonusCard.rating >= holoConfig.min_rating && Math.random() < holoConfig.chance) bonusCard.isSuperHolo = true;
+                    bonusCard.instanceId = 'inst_' + Date.now();
+                    bonusCard.collectedDate = new Date().toLocaleDateString();
+                    mySquad.push(bonusCard); renderSquad();
+                }
             }
             updateUI(); await saveGame();
             addXP(200);
@@ -2573,11 +2607,11 @@
             document.getElementById('survival-result-detail').innerHTML =
                 'YOU WON 10 HANDS IN A ROW!<br>' +
                 '<span style="color:#ffd700;font-family:var(--font-display);font-size:2rem;">+75,000 🌕</span><br>' +
-                (bonusCard ? '<span style="color:#3ecf8e;">+ ' + bonusCard.name + ' added to collection!</span>' : '');
+                '<span style="color:#3ecf8e;">+ FREE ELITE PACK OPENED!</span><br>' +
+                (bonusCard ? '<span style="color:#aaa;font-size:0.85rem;">You pulled: ' + bonusCard.name + (bonusCard.isSuperHolo ? ' ✨ HOLO' : '') + '</span>' : '');
             survivalShowPhase('survival-result');
-            showToast('🏆 JACKPOT! 75,000 🌕 + bonus card!', 8000);
+            showToast('🏆 JACKPOT! 75,000 🌕 + Elite Pack!', 8000);
         }
-
         async function survivalLoss(handNum) {
             survivalShowPhase('survival-result');
             document.getElementById('survival-result-banner').innerText = '💀 ELIMINATED';
@@ -2621,6 +2655,235 @@
             let html = '';
             for (let i = 0; i < 10; i++) {
                 const result = _survivalState.streak[i];
+                const cls = result === true ? 'surv-dot win' : (result === false ? 'surv-dot loss' : 'surv-dot empty');
+                html += '<div class="' + cls + '">' + (result === true ? '✓' : (result === false ? '✗' : (i + 1))) + '</div>';
+            }
+            el.innerHTML = html;
+        }
+
+
+        // ─── EASY SURVIVAL FUNCTIONS ─────────────────────────────────────────────
+        function updateSurvivalEasyEntryBtn() {
+            const btn = document.getElementById('survival-easy-enter-btn');
+            if (btn) btn.innerText = 'ENTER EASY SURVIVAL — ' + SURVIVAL_EASY_ENTRY.toLocaleString() + ' 🌕';
+        }
+
+        function initSurvivalEasyLobby() {
+            updateSurvivalEasyEntryBtn();
+            survivalEasyBackToLobby();
+            const ladder = document.getElementById('survival-easy-reward-ladder');
+            if (!ladder) return;
+            ladder.innerHTML = [...SURVIVAL_EASY_REWARDS].reverse().map(r => {
+                const isBig = r.wins === 10;
+                return '<div class="survival-ladder-row' + (isBig ? ' jackpot' : '') + '" style="' + (isBig ? '' : '') + '">' +
+                    '<span class="survival-ladder-wins">' + (isBig ? '🎯' : '') + ' WIN ' + r.wins + '</span>' +
+                    '<span class="survival-ladder-coins">' + r.coins.toLocaleString() + ' 🌕' + (r.bonusCard ? ' + CARD' : '') + '</span>' +
+                    '</div>';
+            }).join('');
+        }
+
+        function survivalEasyShowPhase(id) {
+            document.querySelectorAll('#view-survival-easy .survival-phase').forEach(p => p.classList.remove('active-phase'));
+            document.getElementById(id).classList.add('active-phase');
+        }
+
+        async function startSurvivalEasy() {
+            if (balance < SURVIVAL_EASY_ENTRY) { showToast('Not enough coins! Need ' + SURVIVAL_EASY_ENTRY.toLocaleString() + ' 🌕 to enter.'); return; }
+            const { data: fresh } = await _supabase.from('user_saves').select('balance').eq('user_id', currentUser.id).single();
+            if (!fresh || fresh.balance < SURVIVAL_EASY_ENTRY) { showToast('Not enough coins!'); return; }
+            balance = fresh.balance;
+            balance -= SURVIVAL_EASY_ENTRY;
+            updateUI(); await saveGame();
+            _survivalEasyState = { active: true, hand: 0, banked: 0, streak: [] };
+            survivalEasyShowPhase('survival-easy-flipping');
+            await survivalEasyPlayHand();
+        }
+
+        function waitForEasyFlip(promptText) {
+            return new Promise(resolve => {
+                const btn = document.getElementById('survival-easy-flip-btn');
+                btn.innerText = promptText;
+                btn.style.display = 'flex';
+                btn.onclick = () => {
+                    btn.style.display = 'none';
+                    btn.onclick = null;
+                    resolve();
+                };
+            });
+        }
+
+        async function survivalEasyPlayHand() {
+            _survivalEasyState.hand++;
+            const handNum = _survivalEasyState.hand;
+            document.getElementById('survival-easy-hand-num').innerText = handNum;
+            document.getElementById('survival-easy-banked-display').innerText = 'BANKED: ' + _survivalEasyState.banked.toLocaleString() + ' 🌕';
+            document.getElementById('survival-easy-action-row').style.display = 'none';
+            document.getElementById('survival-easy-result-msg').innerText = '';
+            document.getElementById('survival-easy-flip-btn').style.display = 'none';
+
+            ['surv-easy-p-card1','surv-easy-p-card2','surv-easy-b-card1','surv-easy-b-card2'].forEach(id => {
+                const el = document.getElementById(id);
+                el.innerHTML = '<div class="survival-card-back">🃏</div>';
+                el.className = 'survival-card-slot';
+            });
+            document.getElementById('surv-easy-p-total').innerText = '? 🌕';
+            document.getElementById('surv-easy-b-total').innerText = '? 🌕';
+            updateSurvivalEasyDots();
+
+            const [pCard1, pCard2, bCard1, bCard2] = await Promise.all([
+                getArenaCard(false), getArenaCard(false), getArenaCard(false), getArenaCard(false)
+            ]);
+            if (!pCard1 || !pCard2 || !bCard1 || !bCard2) {
+                showToast('Connection error. Refunding entry.');
+                balance += SURVIVAL_EASY_ENTRY; updateUI(); await saveGame();
+                survivalEasyBackToLobby(); return;
+            }
+
+            const pTotal = getCardValue(pCard1) + getCardValue(pCard2);
+            const bTotal = getCardValue(bCard1) + getCardValue(bCard2);
+
+            await new Promise(r => setTimeout(r, 500));
+            document.getElementById('surv-easy-b-card1').innerHTML = generateCardHtml(bCard1, false);
+            document.getElementById('survival-easy-result-msg').innerText = 'Bot flipped their first card — flip yours!';
+            await waitForEasyFlip('🃏 FLIP YOUR CARD');
+
+            document.getElementById('surv-easy-p-card1').innerHTML = generateCardHtml(pCard1, false);
+            await new Promise(r => setTimeout(r, 800));
+
+            document.getElementById('surv-easy-b-card2').innerHTML = generateCardHtml(bCard2, false);
+            document.getElementById('surv-easy-b-total').innerText = bTotal.toLocaleString() + ' 🌕';
+            document.getElementById('survival-easy-result-msg').innerText = 'Bot flipped their second card — flip yours to see the result!';
+            await waitForEasyFlip('🃏 FLIP FINAL CARD');
+
+            document.getElementById('surv-easy-p-card2').innerHTML = generateCardHtml(pCard2, false);
+            document.getElementById('surv-easy-p-total').innerText = pTotal.toLocaleString() + ' 🌕';
+            await new Promise(r => setTimeout(r, 800));
+
+            if (pTotal === bTotal) {
+                document.getElementById('survival-easy-result-msg').innerText = '🤝 DRAW — REPLAYING HAND...';
+                _survivalEasyState.hand--;
+                await new Promise(r => setTimeout(r, 1500));
+                await survivalEasyPlayHand(); return;
+            }
+
+            if (pTotal > bTotal) {
+                _survivalEasyState.streak.push(true);
+                const reward = SURVIVAL_EASY_REWARDS[handNum - 1];
+                _survivalEasyState.banked = reward ? reward.coins : _survivalEasyState.banked;
+                document.getElementById('survival-easy-banked-display').innerText = 'BANKED: ' + _survivalEasyState.banked.toLocaleString() + ' 🌕';
+                updateSurvivalEasyDots();
+
+                if (handNum >= 10) { await survivalEasyJackpot(); return; }
+
+                // Check if this tier gives a bonus card
+                if (reward && reward.bonusCard) {
+                    await survivalEasyBonusCard(reward, handNum);
+                    return;
+                }
+
+                document.getElementById('survival-easy-result-msg').innerHTML =
+                    '<span style="color:#3ecf8e;font-size:1.1rem;font-weight:900;">✅ YOU WIN!</span><br>' +
+                    '<span style="font-size:0.8rem;color:#aaa;">Cash out for ' + _survivalEasyState.banked.toLocaleString() + ' 🌕 or risk it for ' + SURVIVAL_EASY_REWARDS[handNum].coins.toLocaleString() + ' 🌕</span>';
+                document.getElementById('survival-easy-cashout-btn').innerText = 'CASH OUT — ' + _survivalEasyState.banked.toLocaleString() + ' 🌕';
+                document.getElementById('survival-easy-action-row').style.display = 'flex';
+            } else {
+                _survivalEasyState.streak.push(false);
+                updateSurvivalEasyDots();
+                await survivalEasyLoss(handNum);
+            }
+        }
+
+        async function survivalEasyBonusCard(reward, handNum) {
+            // Award a bonus card at this tier
+            const minR = reward.bonusMinRating || 1;
+            const maxR = reward.bonusMaxRating || 3;
+            const { data: pool } = await _supabase.from('collection').select('*')
+                .gte('rating', minR).lte('rating', maxR).eq('in_packs', true)
+                .not('rarity', 'ilike', 'limited').not('rarity', 'ilike', '1st edition');
+            let bonusCard = null;
+            if (pool && pool.length > 0) {
+                bonusCard = pool[Math.floor(Math.random() * pool.length)];
+                bonusCard.instanceId = 'inst_' + Date.now();
+                bonusCard.collectedDate = new Date().toLocaleDateString();
+                mySquad.push(bonusCard); renderSquad();
+                updateUI(); await saveGame();
+                showToast('🎁 Bonus! You pulled ' + bonusCard.name + '!', 5000);
+            }
+            document.getElementById('survival-easy-result-msg').innerHTML =
+                '<span style="color:#3ecf8e;font-size:1.1rem;font-weight:900;">✅ WIN ' + handNum + '!</span>' +
+                (bonusCard ? ' <span style="color:#ffd700;">🎁 + ' + bonusCard.name + '!</span>' : '') + '<br>' +
+                '<span style="font-size:0.8rem;color:#aaa;">Cash out for ' + _survivalEasyState.banked.toLocaleString() + ' 🌕 or risk it for ' + (SURVIVAL_EASY_REWARDS[handNum]?.coins || 0).toLocaleString() + ' 🌕</span>';
+            document.getElementById('survival-easy-cashout-btn').innerText = 'CASH OUT — ' + _survivalEasyState.banked.toLocaleString() + ' 🌕';
+            document.getElementById('survival-easy-action-row').style.display = 'flex';
+        }
+
+        async function survivalEasyJackpot() {
+            balance += 5000;
+            const { data: pool } = await _supabase.from('collection').select('*')
+                .gte('rating', 1).lte('rating', 3).eq('in_packs', true)
+                .not('rarity', 'ilike', 'limited').not('rarity', 'ilike', '1st edition');
+            let bonusCard = null;
+            if (pool && pool.length > 0) {
+                bonusCard = pool[Math.floor(Math.random() * pool.length)];
+                bonusCard.instanceId = 'inst_' + Date.now();
+                bonusCard.collectedDate = new Date().toLocaleDateString();
+                mySquad.push(bonusCard); renderSquad();
+            }
+            updateUI(); await saveGame();
+            addXP(100);
+            document.getElementById('survival-easy-result-banner').innerHTML = '🎯 LEGEND! 🎯';
+            document.getElementById('survival-easy-result-banner').className = 'survival-result-banner jackpot';
+            document.getElementById('survival-easy-result-detail').innerHTML =
+                'YOU WON 10 HANDS IN A ROW!<br>' +
+                '<span style="color:#ffd700;font-family:var(--font-display);font-size:2rem;">+5,000 🌕</span><br>' +
+                (bonusCard ? '<span style="color:#3ecf8e;">+ ' + bonusCard.name + ' added to collection!</span>' : '');
+            survivalEasyShowPhase('survival-easy-result');
+            showToast('🎯 LEGEND! 5,000 🌕 + bonus card!', 8000);
+        }
+
+        async function survivalEasyLoss(handNum) {
+            survivalEasyShowPhase('survival-easy-result');
+            document.getElementById('survival-easy-result-banner').innerText = '💀 ELIMINATED';
+            document.getElementById('survival-easy-result-banner').className = 'survival-result-banner loss';
+            const handsWon = handNum - 1;
+            const couldHaveHad = handsWon > 0 ? SURVIVAL_EASY_REWARDS[handsWon - 1]?.coins : 0;
+            document.getElementById('survival-easy-result-detail').innerHTML =
+                'You made it to hand ' + handNum + ' before losing.<br>' +
+                (handsWon > 0
+                    ? '<span style="color:#ef4444;">You could have had ' + couldHaveHad.toLocaleString() + ' 🌕 if you had cashed out!</span>'
+                    : '<span style="color:#ef4444;">Better luck next time!</span>');
+        }
+
+        async function survivalEasyCashOut() {
+            const amount = _survivalEasyState.banked;
+            balance += amount; updateUI(); await saveGame();
+            addXP(Math.floor(amount / 200));
+            survivalEasyShowPhase('survival-easy-result');
+            document.getElementById('survival-easy-result-banner').innerText = '💰 CASHED OUT!';
+            document.getElementById('survival-easy-result-banner').className = 'survival-result-banner cashout';
+            document.getElementById('survival-easy-result-detail').innerHTML =
+                'You survived ' + _survivalEasyState.hand + ' hand' + (_survivalEasyState.hand !== 1 ? 's' : '') + '!<br>' +
+                '<span style="color:#ffd700;font-family:var(--font-display);font-size:2rem;">+' + amount.toLocaleString() + ' 🌕</span>';
+            showToast('💰 Cashed out ' + amount.toLocaleString() + ' 🌕!');
+            _survivalEasyState.active = false;
+        }
+
+        async function survivalEasyNextHand() {
+            document.getElementById('survival-easy-action-row').style.display = 'none';
+            await survivalEasyPlayHand();
+        }
+
+        function survivalEasyBackToLobby() {
+            _survivalEasyState = { active: false, hand: 0, banked: 0, streak: [] };
+            survivalEasyShowPhase('survival-easy-lobby');
+        }
+
+        function updateSurvivalEasyDots() {
+            const el = document.getElementById('survival-easy-streak-dots');
+            if (!el) return;
+            let html = '';
+            for (let i = 0; i < 10; i++) {
+                const result = _survivalEasyState.streak[i];
                 const cls = result === true ? 'surv-dot win' : (result === false ? 'surv-dot loss' : 'surv-dot empty');
                 html += '<div class="' + cls + '">' + (result === true ? '✓' : (result === false ? '✗' : (i + 1))) + '</div>';
             }

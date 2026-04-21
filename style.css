@@ -1249,7 +1249,7 @@ nav button.active { color: var(--accent); border-bottom: 2px solid var(--accent)
 }
 .survival-flip-btn:hover { filter: brightness(1.15); box-shadow: 0 6px 30px rgba(124,58,237,0.6); }
 /* ─── SURVIVAL MODE ──────────────────────────────────────────────────── */
-#view-survival.active { display:flex; flex-direction:column; align-items:center; overflow:hidden; max-height:calc(100vh - 50px); }
+#view-survival.active, #view-survival-easy.active { display:flex; flex-direction:column; align-items:center; overflow:hidden; max-height:calc(100vh - 50px); }
 .survival-phase { display:none; width:100%; max-width:900px; }
 .survival-phase.active-phase { display:block; }
 .survival-lobby-inner { display:flex; flex-direction:column; align-items:center; gap:20px; padding:20px 0 40px; }
