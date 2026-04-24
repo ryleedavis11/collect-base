@@ -1298,3 +1298,36 @@ nav button.active { color: var(--accent); border-bottom: 2px solid var(--accent)
 /* Survival card scaling */
 .survival-card-slot .pokemon-card { transform: scale(1.0); transform-origin: top center; }
 .survival-cards-row-inner { display:flex; gap:12px; }
+/* ─── SPIN WHEEL ─────────────────────────────────────────────────────── */
+#view-wheel.active { display:flex; flex-direction:column; align-items:center; }
+.wheel-page-wrap { display:grid; grid-template-columns:1fr 1fr; gap:24px; width:100%; max-width:900px; padding:10px 0 40px; }
+.wheel-left { display:flex; flex-direction:column; gap:16px; }
+.wheel-right { display:flex; flex-direction:column; align-items:center; gap:14px; }
+
+.wheel-spins-banner { background:linear-gradient(135deg,#1a1400,#2a2000); border:2px solid var(--accent); border-radius:16px; padding:20px; text-align:center; }
+.wheel-spins-label { font-size:0.6rem; color:var(--muted); letter-spacing:3px; font-weight:900; margin-bottom:6px; text-transform:uppercase; }
+.wheel-spins-count { font-family:var(--font-display); font-size:3.5rem; color:var(--accent); line-height:1; }
+.wheel-spins-sub { font-size:0.62rem; color:var(--muted); margin-top:4px; }
+
+.wheel-obj-title { font-size:0.62rem; color:var(--muted); letter-spacing:2px; font-weight:900; text-transform:uppercase; }
+.wheel-obj-row { display:flex; justify-content:space-between; align-items:center; background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:12px 16px; margin-bottom:8px; transition:0.2s; }
+.wheel-obj-row.done { border-color:#3ecf8e; opacity:0.7; }
+.wheel-obj-label { font-size:0.8rem; color:#ccc; }
+.wheel-obj-reward { font-size:0.7rem; font-weight:900; color:var(--accent); }
+.wheel-obj-row.done .wheel-obj-reward { color:#3ecf8e; }
+
+.wheel-canvas-wrap { position:relative; display:flex; justify-content:center; }
+.wheel-pointer { position:absolute; top:-16px; left:50%; transform:translateX(-50%); font-size:1.6rem; color:var(--accent); filter:drop-shadow(0 2px 4px rgba(0,0,0,0.8)); z-index:10; }
+.wheel-spin-btn { background:linear-gradient(135deg,var(--accent),#ff8c00); color:#111; border:none; border-radius:14px; padding:14px 36px; font-family:var(--font-body); font-size:1rem; font-weight:900; letter-spacing:2px; cursor:pointer; width:100%; max-width:320px; transition:0.2s; box-shadow:0 4px 20px rgba(255,203,5,0.3); }
+.wheel-spin-btn:hover:not(:disabled) { filter:brightness(1.1); }
+.wheel-result-msg { font-size:0.85rem; color:#aaa; text-align:center; min-height:20px; }
+
+/* Home preview */
+.wheel-objectives-preview { margin-top:8px; display:flex; flex-direction:column; gap:4px; }
+.wheel-obj-preview-row { display:flex; justify-content:space-between; font-size:0.7rem; color:#888; padding:2px 0; }
+.wheel-obj-preview-row.done { color:#3ecf8e; }
+
+/* Win modal */
+.wheel-win-box { background:linear-gradient(135deg,#0a0a1a,#111); border:2px solid var(--accent); border-radius:24px; padding:32px; max-width:400px; width:95%; text-align:center; box-shadow:0 0 60px rgba(255,203,5,0.3); }
+.wheel-win-title { font-family:var(--font-display); font-size:2rem; color:var(--accent); letter-spacing:3px; margin-bottom:16px; }
+.wheel-prize-coins { font-family:var(--font-display); font-size:3rem; color:var(--gold); margin:16px 0; }

@@ -283,6 +283,7 @@
                 _trainerLevel = data.level || 1;
                 _trainerTitle = data.trainer_title || 'ROOKIE';
                 _tournamentCoinsClaimedIds = data.tournament_coins_claimed || [];
+                if (data.daily_challenges?.spins !== undefined) _wheelSpins = data.daily_challenges.spins;
                 updateLockedCards();
                 const offlineRoster = [...mySquad].sort((a, b) => getCardValue(b) - getCardValue(a)).slice(0, OFFICE_TOP_N);
                 const offlineHourlyRate = offlineRoster.reduce((sum, p) => sum + getCardValue(p) * OFFICE_HOURLY_RATE, 0);
@@ -624,9 +625,10 @@
             stopOfficeTicker();
             officeTickInterval = setInterval(() => {
                 const pending = getPendingEarnings();
-                document.getElementById('office-badge').style.display = (pending > 0 && mySquad.length > 0) ? 'flex' : 'none';
+                const _officeBadge = document.getElementById('office-badge');
+                if (_officeBadge) _officeBadge.style.display = (pending > 0 && mySquad.length > 0) ? 'flex' : 'none';
                 const officeView = document.getElementById('view-office');
-                if (officeView.classList.contains('active')) updateOfficePanelUI();
+                if (officeView && officeView.classList.contains('active')) updateOfficePanelUI();
             }, 5000);
         }
         function stopOfficeTicker() { if (officeTickInterval) { clearInterval(officeTickInterval); officeTickInterval = null; } }
@@ -732,7 +734,7 @@
 
             currentPull = { ...pulledPlayer, instanceId: 'inst_' + Date.now(), collectedDate: new Date().toLocaleDateString() };
             hideLoading();
-            tickChallenge('open_packs', 1);
+            tickChallenge('open_pack', 1);
             addXP(5);
             await animatePack(currentPull);
         }
@@ -880,7 +882,15 @@
                     _featuredCardConfig = row.setting_value;
                     updateFeaturedCardBanner();
                 }
+                if (row.setting_key === 'wheel_config' && Array.isArray(row.setting_value)) { 
+                    WHEEL_CONFIG = row.setting_value; 
+                    console.log('Wheel config loaded from Supabase:', WHEEL_CONFIG.length, 'slices');
+                }
+                if (row.setting_key === 'wheel_objectives' && Array.isArray(row.setting_value)) { WHEEL_OBJECTIVES = row.setting_value; }
+                if (row.setting_key === 'draft_win_reward' && row.setting_value) { DRAFT_WIN_REWARD = Number(row.setting_value); updateDraftRewardDisplay(); }
             });
+            // Redraw wheel with updated config after all settings loaded
+            setTimeout(() => { drawWheel(); renderWheelObjectives(); updateSpinBadge(); }, 100);
         }
 
         async function updateFeaturedCardBanner() {
@@ -1236,7 +1246,8 @@
             if (id === 'shop')      loadShop();
             if (id === 'survival')   initSurvivalLobby();
             if (id === 'survival-easy') initSurvivalEasyLobby();
-            if (id === 'home')      { updateStreakDisplay(); renderDailyChallenges(); updateHomeScreen(); }
+            if (id === 'home')      { updateStreakDisplay(); renderWheelObjectives(); updateHomeScreen(); }
+            if (id === 'wheel')     { renderWheelView(); }
             if (id === 'profile')   loadProfile();
             if (id !== 'team')      exitMultiSelect();
         }
@@ -1245,8 +1256,11 @@
             mySquad.push(currentPull);
             const rarity = (currentPull.rarity || '').toLowerCase();
             tickChallenge('keep_cards', 1);
+            const _rLow = (currentPull.rarity||'').toLowerCase();
+            if (_rLow === 'rare') tickChallenge('collect_rare', 1);
+            if (_rLow === 'ultra rare' || _rLow === 'secret rare') { tickChallenge('collect_rare', 1); tickChallenge('collect_ultra', 1); }
             if (rarity === 'ultra rare' || rarity === 'secret rare' || rarity === 'limited') {
-                tickChallenge('keep_rare', 1);
+                tickChallenge('collect_ultra', 1); tickChallenge('keep_rare', 1);
                 logActivity(rarity === 'ultra rare' ? 'pulled_ultra' : (rarity === 'secret rare' ? 'pulled_secret' : 'pulled_limited'), currentPull);
             }
             const type = getCardType(currentPull);
@@ -1443,87 +1457,349 @@
         }
 
         // ─── DAILY CHALLENGES ────────────────────────────────────────────────────
-        let _dailyChallenges = null;
-        const CHALLENGE_DEFINITIONS = [
-            { id: 'open_packs',  label: '🎴 Open 3 packs',         target: 3,  reward: 300 },
-            { id: 'keep_cards',  label: '📦 Keep 5 cards',          target: 5,  reward: 500 },
-            { id: 'keep_rare',   label: '✨ Keep 1 Ultra Rare+',     target: 1,  reward: 1000 },
-            { id: 'keep_fire',   label: '🔥 Collect 2 Fire cards',  target: 2,  reward: 400 },
-            { id: 'keep_water',  label: '💧 Collect 2 Water cards', target: 2,  reward: 400 },
-            { id: 'keep_grass',  label: '🌿 Collect 2 Grass cards', target: 2,  reward: 400 },
+        // ─── WHEEL SYSTEM ─────────────────────────────────────────────────────────
+        let _dailyChallenges = null; // kept for save compat
+        let _wheelSpins = 0;
+        let _wheelSpinning = false;
+        let WHEEL_CONFIG = [
+            { label: "100 🌕",       type: "coins", value: 100,    color: "#555566", weight: 35 },
+            { label: "250 🌕",       type: "coins", value: 250,    color: "#777788", weight: 25 },
+            { label: "500 🌕",       type: "coins", value: 500,    color: "#ffcb05", weight: 15 },
+            { label: "1,000 🌕",     type: "coins", value: 1000,   color: "#ff8c00", weight: 8  },
+            { label: "STD PACK",     type: "pack",  value: "std",  color: "#3ecf8e", weight: 7  },
+            { label: "RARE CARD",    type: "card",  value: "rare", color: "#7c3aed", weight: 5  },
+            { label: "ELITE PACK",   type: "pack",  value: "elt",  color: "#ef4444", weight: 3  },
+            { label: "ULTRA/SECRET", type: "card",  value: "ultra",color: "#ffd700", weight: 2  }
+        ];
+        let WHEEL_OBJECTIVES = [
+            { id: "open_pack",     label: "🎴 Open a pack",                       spins: 1 },
+            { id: "collect_rare",  label: "⭐ Collect a Rare card",                spins: 1 },
+            { id: "collect_ultra", label: "✨ Collect a Secret Rare or Ultra Rare", spins: 1 }
         ];
 
         function getTodayKey() { return new Date().toDateString(); }
-        function initDailyChallengesState() {
+
+        function initWheelState() {
             const todayKey = getTodayKey();
-            if (!_dailyChallenges || _dailyChallenges.date !== todayKey) {
+            const needsReset = !_dailyChallenges || _dailyChallenges.date !== todayKey;
+            // Also reset if progress keys don't match new wheel objectives
+            const hasWrongKeys = _dailyChallenges && !_dailyChallenges.progress?.open_pack;
+            if (needsReset || hasWrongKeys) {
+                const savedSpins = _dailyChallenges?.spins || _wheelSpins;
                 const progress = {};
-                CHALLENGE_DEFINITIONS.forEach(c => { progress[c.id] = { count: 0, claimed: false }; });
-                _dailyChallenges = { date: todayKey, progress };
+                WHEEL_OBJECTIVES.forEach(o => { progress[o.id] = { done: false }; });
+                _dailyChallenges = { date: todayKey, progress, spins: needsReset ? savedSpins : (hasWrongKeys ? savedSpins : _wheelSpins) };
             }
-        }
-
-        function renderDailyChallenges() {
-            initDailyChallengesState();
-            const prog = _dailyChallenges.progress;
-            const allDone = CHALLENGE_DEFINITIONS.every(c => prog[c.id]?.claimed);
-            const claimedCount = CHALLENGE_DEFINITIONS.filter(c => prog[c.id]?.claimed).length;
-
-            // Update badge on button
-            const badge = document.getElementById('challenges-progress-badge');
-            if (badge) {
-                badge.innerText = claimedCount + '/' + CHALLENGE_DEFINITIONS.length;
-                badge.className = 'challenges-badge' + (allDone ? ' done' : (claimedCount > 0 ? ' partial' : ''));
-            }
-
-            const challengesHtml = (allDone ? '<div class="challenges-all-done">🎉 ALL COMPLETE! Come back tomorrow.</div>' : '') +
-                CHALLENGE_DEFINITIONS.map(c => {
-                    const p = prog[c.id] || { count: 0, claimed: false };
-                    const pct = Math.min((p.count / c.target) * 100, 100);
-                    const done = p.claimed, ready = !done && p.count >= c.target;
-                    return '<div class="challenge-row ' + (done ? 'done' : (ready ? 'ready' : '')) + '">' +
-                        '<div class="challenge-info">' +
-                        '<div class="challenge-label">' + c.label + '</div>' +
-                        '<div class="challenge-bar-wrap"><div class="challenge-bar" style="width:' + pct + '%"></div></div>' +
-                        '<div class="challenge-progress">' + Math.min(p.count, c.target) + ' / ' + c.target + '</div>' +
-                        '</div>' +
-                        '<div class="challenge-reward">+' + c.reward.toLocaleString() + ' 🌕</div>' +
-                        (ready ? '<button class="challenge-claim-btn" onclick="claimChallenge(\'' + c.id + '\')">' + 'CLAIM</button>' : '') +
-                        (done ? '<div class="challenge-claimed">✓</div>' : '') +
-                        '</div>';
-                }).join('');
-
-            // Update hidden panel (legacy) and modal body
-            const panel = document.getElementById('daily-challenges-panel');
-            if (panel) panel.innerHTML = challengesHtml;
-            const modalBody = document.getElementById('challenges-modal-body');
-            if (modalBody) modalBody.innerHTML = challengesHtml;
-        }
-
-        function openChallengesModal() {
-            renderDailyChallenges();
-            document.getElementById('challenges-modal').style.display = 'flex';
-        }
-        function closeChallengesModal() {
-            document.getElementById('challenges-modal').style.display = 'none';
+            if (_dailyChallenges.spins !== undefined) _wheelSpins = _dailyChallenges.spins;
         }
 
         function tickChallenge(id, amount) {
-            initDailyChallengesState();
+            initWheelState();
             const prog = _dailyChallenges.progress;
-            if (prog[id] && !prog[id].claimed) { prog[id].count += amount; renderDailyChallenges(); saveGame(); }
+            // Map old IDs to new
+            const idMap = {
+                open_packs: 'open_pack', keep_rare: 'collect_rare',
+                keep_cards: null, keep_fire: null, keep_water: null, keep_grass: null
+            };
+            const mappedId = idMap.hasOwnProperty(id) ? idMap[id] : id;
+            if (!mappedId) return;
+            if (prog[mappedId] && !prog[mappedId].done) {
+                prog[mappedId].done = true;
+                _wheelSpins++;
+                _dailyChallenges.spins = _wheelSpins;
+                saveGame();
+                showToast('🎡 Objective complete! +1 spin earned!');
+                renderWheelObjectives();
+                updateSpinBadge();
+            }
         }
 
-        async function claimChallenge(id) {
-            initDailyChallengesState();
-            const def = CHALLENGE_DEFINITIONS.find(c => c.id === id);
+        // Keep old function names that get called elsewhere
+        function renderDailyChallenges() { renderWheelObjectives(); }
+        function openChallengesModal() { showView('wheel'); }
+        function closeChallengesModal() {}
+        function claimChallenge() {}
+        function initDailyChallengesState() { initWheelState(); }
+
+        function updateSpinBadge() {
+            const badge = document.getElementById('spin-badge');
+            if (badge) {
+                badge.innerText = _wheelSpins + ((_wheelSpins === 1) ? ' SPIN' : ' SPINS');
+                badge.className = 'challenges-badge' + (_wheelSpins > 0 ? ' partial' : '');
+            }
+        }
+
+        function renderWheelObjectives() {
+            initWheelState();
+            updateSpinBadge();
             const prog = _dailyChallenges.progress;
-            if (!def || !prog[id] || prog[id].claimed || prog[id].count < def.target) return;
-            prog[id].claimed = true;
-            balance += def.reward;
-            addXP(20);
-            updateUI(); renderDailyChallenges(); await saveGame();
-            showToast(`🎉 Challenge complete! +${def.reward.toLocaleString()} 🌕`);
+
+            // Home preview
+            const preview = document.getElementById('wheel-objectives-preview');
+            if (preview) {
+                preview.innerHTML = WHEEL_OBJECTIVES.map(o => {
+                    const done = prog[o.id]?.done;
+                    return '<div class="wheel-obj-preview-row ' + (done ? 'done' : '') + '">' +
+                        '<span>' + o.label + '</span>' +
+                        '<span>' + (done ? '✓ +1 spin' : '+1 spin') + '</span>' +
+                        '</div>';
+                }).join('');
+            }
+
+            // Wheel page objectives
+            const list = document.getElementById('wheel-objectives-list');
+            if (list) {
+                list.innerHTML = WHEEL_OBJECTIVES.map(o => {
+                    const done = prog[o.id]?.done;
+                    return '<div class="wheel-obj-row ' + (done ? 'done' : '') + '">' +
+                        '<div class="wheel-obj-label">' + o.label + '</div>' +
+                        '<div class="wheel-obj-reward">' + (done ? '✓ EARNED' : '+' + o.spins + ' SPIN') + '</div>' +
+                        '</div>';
+                }).join('');
+            }
+        }
+
+        function renderWheelView() {
+            initWheelState();
+            renderWheelObjectives();
+            const countEl = document.getElementById('wheel-spins-count');
+            if (countEl) countEl.innerText = _wheelSpins;
+            const btnCountEl = document.getElementById('wheel-btn-count');
+            if (btnCountEl) btnCountEl.innerText = '(' + _wheelSpins + ' spin' + (_wheelSpins !== 1 ? 's' : '') + ')';
+            const btn = document.getElementById('wheel-spin-btn');
+            if (btn) {
+                btn.disabled = _wheelSpins <= 0;
+                btn.style.opacity = _wheelSpins <= 0 ? '0.5' : '1';
+            }
+            drawWheel();
+        }
+
+        function drawWheel(highlightIndex = -1) {
+            const canvas = document.getElementById('wheel-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const cx = canvas.width / 2, cy = canvas.height / 2, r = cx - 10;
+            const totalWeight = WHEEL_CONFIG.reduce((s, i) => s + i.weight, 0);
+            let startAngle = -Math.PI / 2;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            WHEEL_CONFIG.forEach((item, i) => {
+                const slice = (item.weight / totalWeight) * Math.PI * 2;
+                const endAngle = startAngle + slice;
+                const isHighlight = i === highlightIndex;
+
+                // Slice fill
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.arc(cx, cy, r, startAngle, endAngle);
+                ctx.closePath();
+                ctx.fillStyle = item.color;
+                ctx.fill();
+                ctx.strokeStyle = '#111';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Highlight winner
+                if (isHighlight) {
+                    ctx.beginPath();
+                    ctx.moveTo(cx, cy);
+                    ctx.arc(cx, cy, r, startAngle, endAngle);
+                    ctx.closePath();
+                    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+                    ctx.fill();
+                }
+
+                // Label
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(startAngle + slice / 2);
+                ctx.textAlign = 'right';
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 11px sans-serif';
+                ctx.shadowColor = 'rgba(0,0,0,0.8)';
+                ctx.shadowBlur = 4;
+                ctx.fillText(item.label, r - 12, 4);
+                ctx.restore();
+
+                startAngle = endAngle;
+            });
+
+            // Center circle
+            ctx.beginPath();
+            ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+            ctx.fillStyle = '#111';
+            ctx.fill();
+            ctx.strokeStyle = '#ffcb05';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+
+        function pickWheelResult() {
+            const totalWeight = WHEEL_CONFIG.reduce((s, i) => s + i.weight, 0);
+            let rand = Math.random() * totalWeight;
+            for (let i = 0; i < WHEEL_CONFIG.length; i++) {
+                rand -= WHEEL_CONFIG[i].weight;
+                if (rand <= 0) return i;
+            }
+            return WHEEL_CONFIG.length - 1;
+        }
+
+        async function spinWheel() {
+            if (_wheelSpinning || _wheelSpins <= 0) return;
+            _wheelSpinning = true;
+            _wheelSpins--;
+            _dailyChallenges.spins = _wheelSpins;
+            await saveGame();
+
+            const btn = document.getElementById('wheel-spin-btn');
+            if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; }
+            document.getElementById('wheel-result-msg').innerText = '';
+
+            const winIndex = pickWheelResult();
+            const totalWeight = WHEEL_CONFIG.reduce((s, i) => s + i.weight, 0);
+
+            // Calculate the angle where winning slice center is
+            let angleToWin = -Math.PI / 2;
+            for (let i = 0; i < winIndex; i++) {
+                angleToWin += (WHEEL_CONFIG[i].weight / totalWeight) * Math.PI * 2;
+            }
+            angleToWin += (WHEEL_CONFIG[winIndex].weight / totalWeight) * Math.PI * 2 / 2;
+
+            // Spin: multiple full rotations + land on winner
+            const spins = 5 + Math.floor(Math.random() * 3);
+            const targetAngle = spins * Math.PI * 2 + (Math.PI * 1.5 - angleToWin);
+            const duration = 3500;
+            const startTime = performance.now();
+            let currentAngle = 0;
+
+            function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+            function animate(now) {
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                currentAngle = targetAngle * easeOut(progress);
+
+                // Redraw rotated wheel
+                const canvas = document.getElementById('wheel-canvas');
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                const cx = canvas.width / 2, cy = canvas.height / 2, r = cx - 10;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(currentAngle);
+                ctx.translate(-cx, -cy);
+
+                let startA = -Math.PI / 2;
+                WHEEL_CONFIG.forEach((item) => {
+                    const slice = (item.weight / totalWeight) * Math.PI * 2;
+                    const endA = startA + slice;
+                    ctx.beginPath();
+                    ctx.moveTo(cx, cy);
+                    ctx.arc(cx, cy, r, startA, endA);
+                    ctx.closePath();
+                    ctx.fillStyle = item.color;
+                    ctx.fill();
+                    ctx.strokeStyle = '#111';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.save();
+                    ctx.translate(cx, cy);
+                    ctx.rotate(startA + slice / 2);
+                    ctx.textAlign = 'right';
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 11px sans-serif';
+                    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+                    ctx.shadowBlur = 4;
+                    ctx.fillText(item.label, r - 12, 4);
+                    ctx.restore();
+                    startA = endA;
+                });
+
+                ctx.restore();
+                // Center
+                ctx.beginPath();
+                ctx.arc(cx, cy, 18, 0, Math.PI * 2);
+                ctx.fillStyle = '#111';
+                ctx.fill();
+                ctx.strokeStyle = '#ffcb05';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    _wheelSpinning = false;
+                    awardWheelPrize(winIndex);
+                }
+            }
+            requestAnimationFrame(animate);
+        }
+
+        async function awardWheelPrize(winIndex) {
+            const prize = WHEEL_CONFIG[winIndex];
+            let prizeHtml = '';
+            let prizeTitle = '🎉 YOU WON!';
+
+            if (prize.type === 'coins') {
+                balance += prize.value;
+                updateUI(); await saveGame();
+                prizeHtml = '<div class="wheel-prize-coins">' + prize.value.toLocaleString() + ' 🌕</div>';
+                showToast('🎡 You won ' + prize.value.toLocaleString() + ' 🌕!');
+
+            } else if (prize.type === 'pack') {
+                // Open a pack automatically
+                const { data: pack } = await _supabase.from('packs').select('*').eq('tier', prize.value).single();
+                if (pack) {
+                    const roll = Math.random() * 100;
+                    const rules = pack.odds_config || [];
+                    let cumulative = 0, rule = rules[rules.length - 1];
+                    for (const r of rules) { cumulative += r.chance; if (roll < cumulative) { rule = r; break; } }
+                    const { data } = await _supabase.from('collection').select('*')
+                        .gte('rating', rule.min).lte('rating', rule.max)
+                        .not('rarity', 'ilike', 'limited').not('rarity', 'ilike', '1st edition')
+                        .eq('in_packs', true);
+                    if (data && data.length > 0) {
+                        const card = { ...data[Math.floor(Math.random() * data.length)], instanceId: 'inst_' + Date.now(), collectedDate: new Date().toLocaleDateString() };
+                        if (card.rating >= holoConfig.min_rating && Math.random() < holoConfig.chance) card.isSuperHolo = true;
+                        mySquad.push(card); renderSquad(); updateUI(); await saveGame();
+                        prizeTitle = '🎴 FREE ' + prize.value.toUpperCase() + ' PACK!';
+                        prizeHtml = '<div style="display:flex;justify-content:center;">' + generateCardHtml(card, false) + '</div>';
+                        showToast('🎴 Free pack! You pulled ' + card.name + '!');
+                    }
+                }
+
+            } else if (prize.type === 'card') {
+                const isUltra = prize.value === 'ultra';
+                const minR = isUltra ? 7 : 4, maxR = isUltra ? 9 : 6;
+                const rarityFilter = isUltra ? ['ultra rare', 'secret rare'] : ['rare'];
+                let query = _supabase.from('collection').select('*').gte('rating', minR).lte('rating', maxR).eq('in_packs', true);
+                const { data } = await query;
+                const filtered = (data || []).filter(c => {
+                    const r = (c.rarity || '').toLowerCase();
+                    return !['limited','1st edition'].includes(r);
+                });
+                if (filtered.length > 0) {
+                    const card = { ...filtered[Math.floor(Math.random() * filtered.length)], instanceId: 'inst_' + Date.now(), collectedDate: new Date().toLocaleDateString() };
+                    mySquad.push(card); renderSquad(); updateUI(); await saveGame();
+                    prizeTitle = isUltra ? '✨ ULTRA/SECRET RARE!' : '⭐ RARE CARD!';
+                    prizeHtml = '<div style="display:flex;justify-content:center;">' + generateCardHtml(card, false) + '</div>';
+                    showToast((isUltra ? '✨' : '⭐') + ' You won a ' + card.name + '!');
+                }
+            }
+
+            // Show win modal
+            document.getElementById('wheel-win-title').innerText = prizeTitle;
+            document.getElementById('wheel-win-prize').innerHTML = prizeHtml;
+            document.getElementById('wheel-win-modal').style.display = 'flex';
+            addXP(10);
+
+            // Update spin count display
+            renderWheelView();
+        }
+
+        function closeWheelWinModal() {
+            document.getElementById('wheel-win-modal').style.display = 'none';
         }
 
         // ─── DAILY REWARD ─────────────────────────────────────────────────────────
@@ -2149,7 +2425,7 @@
         let _exchangeConfig = [];
 
         async function loadExchangeState() {
-            const { data } = await _supabase.from('exchanges').select('*').order('order', { ascending: true });
+            const { data } = await _supabase.from('exchanges').select('*').order('sort_order', { ascending: true });
             _exchangeConfig = data || [];
             updateExchangeBadge();
             return _exchangeConfig;
@@ -2448,6 +2724,14 @@
             { wins: 10, coins: 5000, label: 'LEGEND', bonusCard: true, bonusMinRating: 1, bonusMaxRating: 3 }
         ];
         let _survivalEasyState = { active: false, hand: 0, banked: 0, streak: [] };
+
+        // ─── DRAFT WIN REWARD ─────────────────────────────────────────────────────
+        let DRAFT_WIN_REWARD = 1000;
+
+        function updateDraftRewardDisplay() {
+            const el = document.getElementById('draft-win-reward-display');
+            if (el) el.innerText = DRAFT_WIN_REWARD.toLocaleString() + ' 🌕';
+        }
 
         function updateSurvivalEntryBtn() {
             const btn = document.getElementById('survival-enter-btn');

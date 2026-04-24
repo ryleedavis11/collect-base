@@ -223,26 +223,26 @@
                     </div>
                 </div>
                 <div class="home-panel">
-                    <button class="home-challenges-btn" onclick="openChallengesModal()">
-                        <span>📋 DAILY CHALLENGES</span>
-                        <span id="challenges-progress-badge" class="challenges-badge">0/6</span>
+                    <button class="home-challenges-btn" onclick="showView('wheel')">
+                        <span>🎡 SPIN THE WHEEL</span>
+                        <span id="spin-badge" class="challenges-badge">0 SPINS</span>
                     </button>
+                    <div class="wheel-objectives-preview" id="wheel-objectives-preview"></div>
                 </div>
             </div>
         </div>
 
-        <!-- Hidden panel still needed for renderDailyChallenges logic -->
         <div id="daily-challenges-panel" style="display:none;"></div>
     </div>
 
     <!-- ─── DAILY CHALLENGES MODAL ─── -->
-    <div id="challenges-modal" onclick="if(event.target===this)closeChallengesModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:3500;align-items:center;justify-content:center;">
-        <div class="challenges-modal-box">
-            <div class="challenges-modal-header">
-                <span>📋 DAILY CHALLENGES</span>
-                <button onclick="closeChallengesModal()" style="background:none;border:none;color:#888;font-size:1.2rem;cursor:pointer;">✕</button>
-            </div>
-            <div id="challenges-modal-body"></div>
+    <!-- ─── WHEEL WIN MODAL ─── -->
+    <div id="wheel-win-modal" onclick="if(event.target===this)closeWheelWinModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9500;align-items:center;justify-content:center;">
+        <div class="wheel-win-box">
+            <div class="wheel-win-title" id="wheel-win-title">🎉 YOU WON!</div>
+            <div class="wheel-win-prize" id="wheel-win-prize"></div>
+            <div class="wheel-win-card" id="wheel-win-card"></div>
+            <button class="wheel-spin-btn" style="max-width:220px;margin-top:16px;" onclick="closeWheelWinModal()">COLLECT!</button>
         </div>
     </div>
 
@@ -554,6 +554,39 @@
                 <div class="survival-result-banner" id="survival-easy-result-banner">GAME OVER</div>
                 <div class="survival-result-detail" id="survival-easy-result-detail"></div>
                 <button class="survival-enter-btn" style="margin-top:20px;background:linear-gradient(135deg,#3ecf8e,#2ab87a);color:#000;" onclick="survivalEasyBackToLobby()">PLAY AGAIN</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── WHEEL VIEW ─── -->
+    <div id="view-wheel" class="view">
+        <div class="view-header">
+            <h2 class="view-title">🎡 SPIN THE WHEEL</h2>
+            <p class="view-sub">COMPLETE DAILY OBJECTIVES TO EARN SPINS</p>
+        </div>
+        <div class="wheel-page-wrap">
+
+            <!-- LEFT: Objectives -->
+            <div class="wheel-left">
+                <div class="wheel-spins-banner">
+                    <div class="wheel-spins-label">SPINS AVAILABLE</div>
+                    <div class="wheel-spins-count" id="wheel-spins-count">0</div>
+                    <div class="wheel-spins-sub">Spins carry over to tomorrow</div>
+                </div>
+                <div class="wheel-obj-title">DAILY OBJECTIVES</div>
+                <div id="wheel-objectives-list"></div>
+            </div>
+
+            <!-- RIGHT: Wheel -->
+            <div class="wheel-right">
+                <div class="wheel-canvas-wrap">
+                    <canvas id="wheel-canvas" width="400" height="400"></canvas>
+                    <div class="wheel-pointer">▼</div>
+                </div>
+                <button class="wheel-spin-btn" id="wheel-spin-btn" onclick="spinWheel()">
+                    SPIN! <span id="wheel-btn-count">(0 spins)</span>
+                </button>
+                <div class="wheel-result-msg" id="wheel-result-msg"></div>
             </div>
         </div>
     </div>
